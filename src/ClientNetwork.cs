@@ -189,7 +189,7 @@ public class ClientNetwork
 	{
 		connected = false;
 		client.Close();
-		stream.Close();
+		if (stream != null) stream.Close();
 
 
 		Logger.Info("Disconnecting from server");
