@@ -220,13 +220,7 @@ public class Game
 		
 				if (chunk.HasRecivedData)
 				{
-					//if the player cannot see a chunks face, do not draw it
-					Raylib.DrawModel(chunk.BlockFaceModel[(int)BlockFace.NegativeY], new System.Numerics.Vector3((float)pos.X, (float)pos.Y, (float)pos.Z), 1.0f, new Color(150, 150, 150, 255));
-					Raylib.DrawModel(chunk.BlockFaceModel[(int)BlockFace.PositiveY], new System.Numerics.Vector3((float)pos.X, (float)pos.Y, (float)pos.Z), 1.0f, new Color(255, 255, 255, 255));
-					if (chunk.Z >= cameraChunkPos.Y) Raylib.DrawModel(chunk.BlockFaceModel[(int)BlockFace.NegativeZ], new System.Numerics.Vector3((float)pos.X, (float)pos.Y, (float)pos.Z), 1.0f, new Color(220, 220, 220, 255));
-					if (chunk.Z <= cameraChunkPos.Y) Raylib.DrawModel(chunk.BlockFaceModel[(int)BlockFace.PositiveZ], new System.Numerics.Vector3((float)pos.X, (float)pos.Y, (float)pos.Z), 1.0f, new Color(220, 220, 220, 255));
-					if (chunk.X >= cameraChunkPos.X) Raylib.DrawModel(chunk.BlockFaceModel[(int)BlockFace.NegativeX], new System.Numerics.Vector3((float)pos.X, (float)pos.Y, (float)pos.Z), 1.0f, new Color(180, 180, 180, 255));
-					if (chunk.X <= cameraChunkPos.X) Raylib.DrawModel(chunk.BlockFaceModel[(int)BlockFace.PositiveX], new System.Numerics.Vector3((float)pos.X, (float)pos.Y, (float)pos.Z), 1.0f, new Color(180, 180, 180, 255));
+					Raylib.DrawModel(chunk.model, new System.Numerics.Vector3((float)pos.X, (float)pos.Y, (float)pos.Z), 1.0f, Color.White);
 
 					//only render bounding boxes arround chunks that the player is in
 					List<Vector2> surroundingplayerChunks = new List<Vector2>()

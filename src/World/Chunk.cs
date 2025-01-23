@@ -1,8 +1,6 @@
 using System.Diagnostics;
 using System.IO.Compression;
 using System.Numerics;
-using System.Reflection;
-using System.Security.Cryptography.X509Certificates;
 using Raylib_cs;
 public class Chunk
 {
@@ -10,7 +8,7 @@ public class Chunk
 	public bool HasRecivedData = false;
 	public byte[] _blockIDs;
 
-	public Model[] BlockFaceModel = new Model[6];
+	public Model model;
 
 	public List<BoundingBox> BoundingBoxes = new List<BoundingBox>();
 
@@ -33,319 +31,123 @@ public class Chunk
 			
 			ds.Read(_blockIDs, 0, blockCount);
 
-			RegenerateMesh(BlockFace.NegativeY);
-			RegenerateMesh(BlockFace.PositiveY);
-			RegenerateMesh(BlockFace.NegativeZ);
-			RegenerateMesh(BlockFace.PositiveZ);
-			RegenerateMesh(BlockFace.NegativeX);
-			RegenerateMesh(BlockFace.PositiveX);
+			RegenerateMesh();
 			RegenerateBoundingBoxes();
         }
 	}
 
-	public void RegenerateAllMesh()
-	{
-		RegenerateMesh(BlockFace.NegativeY);
-		RegenerateMesh(BlockFace.PositiveY);
-		RegenerateMesh(BlockFace.NegativeZ);
-		RegenerateMesh(BlockFace.PositiveZ);
-		RegenerateMesh(BlockFace.NegativeX);
-		RegenerateMesh(BlockFace.PositiveX);
-	}
-
-	public unsafe void RegenerateMesh(BlockFace face)
+	public unsafe void RegenerateMesh()
 	{
 		if (!HasRecivedData) return;
 
-		int vertexCount = 0, triangleCount = 0;
+		List<System.Numerics.Vector3> vertices = new List<System.Numerics.Vector3>();
+		List<System.Numerics.Vector2> texcoords = new List<System.Numerics.Vector2>();
+		List<System.Numerics.Vector3> normals = new List<System.Numerics.Vector3>();
+		List<Color> colors = new List<Color>();
+		List<ushort> indices = new List<ushort>();
 
-		// Calculate vertex count and triangle count
 		for (int x = 0; x < WorldConstants.ChunkWidth; x++)
 		{
 			for (int y = 0; y < WorldConstants.Height; y++)
 			{
 				for (int z = 0; z < WorldConstants.ChunkDepth; z++)
 				{
+					if (GetBlockID(x, y, z) == 0) continue;
+					IBlockModeler modeler;
 					byte blockID = GetBlockID(x, y, z);
-					if (blockID == 0) continue;
 
-					// Check if we need to add a face
-					switch (face)
+					if (
+						blockID == 6 ||
+						blockID == 10 ||
+						blockID == 31 ||
+						blockID == 32 ||
+						blockID == 37 ||
+						blockID == 38 ||
+						blockID == 39 ||
+						blockID == 40 ||
+						blockID == 59 ||
+						blockID == 83
+					)
 					{
-						case BlockFace.NegativeY:
-							if (GetBlockID(x, y - 1, z) == 0) triangleCount += 2; // Bottom face
-							break;
-						case BlockFace.PositiveY:
-							if (GetBlockID(x, y + 1, z) == 0) triangleCount += 2; // Top face
-							break;
-						case BlockFace.NegativeZ:
-							if (GetBlockID(x, y, z - 1) == 0) triangleCount += 2; // Front face
-							break;
-						case BlockFace.PositiveZ:
-							if (GetBlockID(x, y, z + 1) == 0) triangleCount += 2; // Back face
-							break;
-						case BlockFace.NegativeX:
-							if (GetBlockID(x - 1, y, z) == 0) triangleCount += 2; // Left face
-							break;
-						case BlockFace.PositiveX:	
-							if (GetBlockID(x + 1, y, z) == 0) triangleCount += 2; // Right face
-							break;
-					}			
+						modeler = new QuadModeler();
+					}
+					else
+					{
+						modeler = new CubeModeler();
+					}
+
+					modeler.RenderBlock(this, x, y, z, ref vertices, ref texcoords, ref normals, ref colors, ref indices);
 				}
 			}
 		}
 
-		vertexCount = triangleCount * 3;
-
-		// Create and allocate the mesh
-		Mesh mesh = new(vertexCount, triangleCount);
+		int vertexCount = vertices.Count;
+		Mesh mesh = new Mesh(vertexCount, indices.Count / 2);
 		mesh.AllocVertices();
 		mesh.AllocTexCoords();
 		mesh.AllocNormals();
+		mesh.AllocColors();
 		mesh.AllocIndices();
-		Span<System.Numerics.Vector3> vertices = mesh.VerticesAs<System.Numerics.Vector3>();
-		Span<System.Numerics.Vector2> texcoords = mesh.TexCoordsAs<System.Numerics.Vector2>();
-		Span<System.Numerics.Vector3> normals = mesh.NormalsAs<System.Numerics.Vector3>();
-		Span<Color> colors = mesh.ColorsAs<Color>();
-		Span<ushort> indices = mesh.IndicesAs<ushort>();
 
-		int vertexIndex = 0;
-		int indexOffset = 0;
+		Span<System.Numerics.Vector3> verticesMeshSpan = mesh.VerticesAs<System.Numerics.Vector3>();
+		Span<System.Numerics.Vector2> texcoordsSpan = mesh.TexCoordsAs<System.Numerics.Vector2>();
+		Span<System.Numerics.Vector3> normalsSpan = mesh.NormalsAs<System.Numerics.Vector3>();
+		Span<Color> colorsSpan = mesh.ColorsAs<Color>();
+		Span<ushort> indicesSpan = mesh.IndicesAs<ushort>();
 
-		//texture atlas
-		int textureAtlasSize = BetaClient.Instance.terrainAtlas.Width;
-		int textureAtlasBlockSize = 16; //16x16
+		/*
+		Logger.Info($"verticesMeshSpan.Length: {verticesMeshSpan.Length}");
+		Logger.Info($"texcoordsSpan.Length: {texcoordsSpan.Length}");
+		Logger.Info($"normalsSpan.Length: {normalsSpan.Length}");
+		Logger.Info($"colorsSpan.Length: {colorsSpan.Length}");
+		Logger.Info($"indicesSpan.Length: {indicesSpan.Length}");
+		Logger.Info($"");
+		Logger.Info($"vertices.Count: {vertices.Count}");
+		Logger.Info($"texcoords.Count: {texcoords.Count}");
+		Logger.Info($"normals.Count: {normals.Count}");
+		Logger.Info($"colors.Count: {colors.Count}");
+		Logger.Info($"indices.Count: {indices.Count}");
+		*/
 
-		for (int x = 0; x < WorldConstants.ChunkWidth; x++)
+		//add all vertices to the mesh
+		for (int i = 0; i < vertices.Count; i++)
 		{
-			for (int y = 0; y < WorldConstants.Height; y++)
-			{
-				for (int z = 0; z < WorldConstants.ChunkDepth; z++)
-				{
-					byte blockID = GetBlockID(x, y, z);
-					if (blockID == 0) continue;
+			verticesMeshSpan[i] = vertices[i];
+		}
 
-					//get altas coordinates
-					Tuple<int,int> atlasCoordinates = new Tuple<int, int>(0, 14);
-					BlockDefinition block = BlockRegistry.GetBlock(blockID);
-					if (block != null)
-					{
-						atlasCoordinates = BlockRegistry.GetBlock(blockID).GetTextureMap((byte)0, face);
-					}
+		//add all texcoords to the mesh
+		for (int i = 0; i < texcoords.Count; i++)
+		{
+			texcoordsSpan[i] = texcoords[i];
+		}
 
-					//convert to pixel coordinates
-					atlasCoordinates = new Tuple<int, int>(atlasCoordinates.Item1 * textureAtlasBlockSize, atlasCoordinates.Item2 * textureAtlasBlockSize);
+		//add all normals to the mesh
+		for (int i = 0; i < normals.Count; i++)
+		{
+			normalsSpan[i] = normals[i];
+		}
 
-					
-					// Check if we need to add a face (currently only top face)
-					switch (face)
-					{
-						case BlockFace.NegativeY:
-							if (GetBlockID(x, y - 1, z) == 0)
-							{
-								// Bottom face vertices
-								vertices[vertexIndex] = new System.Numerics.Vector3(x, y, z);
-								vertices[vertexIndex + 1] = new System.Numerics.Vector3(x, y, z + 1);
-								vertices[vertexIndex + 2] = new System.Numerics.Vector3(x + 1, y, z);
-								vertices[vertexIndex + 3] = new System.Numerics.Vector3(x + 1, y, z + 1);
+		//add all colors to the mesh
+		for (int i = 0; i < colors.Count; i++)
+		{
+			colorsSpan[i] = colors[i];
+		}
 
-								texcoords[vertexIndex] = new System.Numerics.Vector2((float)atlasCoordinates.Item1 / textureAtlasSize, (float)atlasCoordinates.Item2 / textureAtlasSize);
-								texcoords[vertexIndex + 1] = new System.Numerics.Vector2((float)atlasCoordinates.Item1 / textureAtlasSize, (float)(atlasCoordinates.Item2 + textureAtlasBlockSize) / textureAtlasSize);
-								texcoords[vertexIndex + 2] = new System.Numerics.Vector2((float)(atlasCoordinates.Item1 + textureAtlasBlockSize) / textureAtlasSize, (float)atlasCoordinates.Item2 / textureAtlasSize);
-								texcoords[vertexIndex + 3] = new System.Numerics.Vector2((float)(atlasCoordinates.Item1 + textureAtlasBlockSize) / textureAtlasSize, (float)(atlasCoordinates.Item2 + textureAtlasBlockSize) / textureAtlasSize);
-
-								normals[vertexIndex] = -System.Numerics.Vector3.UnitY;
-								normals[vertexIndex + 1] = -System.Numerics.Vector3.UnitY;
-								normals[vertexIndex + 2] = -System.Numerics.Vector3.UnitY;
-								normals[vertexIndex + 3] = -System.Numerics.Vector3.UnitY;
-
-								// Define indices for two triangles 
-								indices[indexOffset] = (ushort)(vertexIndex + 2);
-								indices[indexOffset + 1] = (ushort)(vertexIndex + 1);
-								indices[indexOffset + 2] = (ushort)(vertexIndex + 0);
-
-								indices[indexOffset + 3] = (ushort)(vertexIndex + 2);
-								indices[indexOffset + 4] = (ushort)(vertexIndex + 3);
-								indices[indexOffset + 5] = (ushort)(vertexIndex + 1);
-
-								vertexIndex += 4;
-								indexOffset += 6;
-							}
-							break;
-						case BlockFace.PositiveY:
-							if (GetBlockID(x, y + 1, z) == 0)
-							{
-								// Top face vertices
-								vertices[vertexIndex] = new System.Numerics.Vector3(x, y + 1, z);
-								vertices[vertexIndex + 1] = new System.Numerics.Vector3(x, y + 1, z + 1);
-								vertices[vertexIndex + 2] = new System.Numerics.Vector3(x + 1, y + 1, z);
-								vertices[vertexIndex + 3] = new System.Numerics.Vector3(x + 1, y + 1, z + 1);
-
-								texcoords[vertexIndex] = new System.Numerics.Vector2((float)atlasCoordinates.Item1 / textureAtlasSize, (float)atlasCoordinates.Item2 / textureAtlasSize);
-								texcoords[vertexIndex + 1] = new System.Numerics.Vector2((float)atlasCoordinates.Item1 / textureAtlasSize, (float)(atlasCoordinates.Item2 + textureAtlasBlockSize) / textureAtlasSize);
-								texcoords[vertexIndex + 2] = new System.Numerics.Vector2((float)(atlasCoordinates.Item1 + textureAtlasBlockSize) / textureAtlasSize, (float)atlasCoordinates.Item2 / textureAtlasSize);
-								texcoords[vertexIndex + 3] = new System.Numerics.Vector2((float)(atlasCoordinates.Item1 + textureAtlasBlockSize) / textureAtlasSize, (float)(atlasCoordinates.Item2 + textureAtlasBlockSize) / textureAtlasSize);
-
-								normals[vertexIndex] = System.Numerics.Vector3.UnitY;
-								normals[vertexIndex + 1] = System.Numerics.Vector3.UnitY;
-								normals[vertexIndex + 2] = System.Numerics.Vector3.UnitY;
-								normals[vertexIndex + 3] = System.Numerics.Vector3.UnitY;
-
-								// Define indices for two triangles (counterclockwise order for correct normals)
-								indices[indexOffset] = (ushort)(vertexIndex);
-								indices[indexOffset + 1] = (ushort)(vertexIndex + 1);
-								indices[indexOffset + 2] = (ushort)(vertexIndex + 2);
-
-								indices[indexOffset + 3] = (ushort)(vertexIndex + 1);
-								indices[indexOffset + 4] = (ushort)(vertexIndex + 3);
-								indices[indexOffset + 5] = (ushort)(vertexIndex + 2);			
-
-								vertexIndex += 4;
-								indexOffset += 6;
-							}
-							break;
-						case BlockFace.NegativeZ:
-							if (GetBlockID(x, y, z - 1) == 0)
-							{
-								// Front face vertices
-								vertices[vertexIndex] = new System.Numerics.Vector3(x, y, z);
-								vertices[vertexIndex + 1] = new System.Numerics.Vector3(x, y + 1, z);
-								vertices[vertexIndex + 2] = new System.Numerics.Vector3(x + 1, y, z);
-								vertices[vertexIndex + 3] = new System.Numerics.Vector3(x + 1, y + 1, z);
-
-								texcoords[vertexIndex + 0] = new System.Numerics.Vector2((float)(atlasCoordinates.Item1 + textureAtlasBlockSize) / textureAtlasSize, (float)(atlasCoordinates.Item2 + textureAtlasBlockSize) / textureAtlasSize);
-								texcoords[vertexIndex + 1] = new System.Numerics.Vector2((float)(atlasCoordinates.Item1 + textureAtlasBlockSize) / textureAtlasSize, (float)atlasCoordinates.Item2 / textureAtlasSize);
-								texcoords[vertexIndex + 2] = new System.Numerics.Vector2((float)atlasCoordinates.Item1 / textureAtlasSize, (float)(atlasCoordinates.Item2 + textureAtlasBlockSize) / textureAtlasSize);
-								texcoords[vertexIndex + 3] = new System.Numerics.Vector2((float)atlasCoordinates.Item1 / textureAtlasSize, (float)atlasCoordinates.Item2 / textureAtlasSize);
-
-								normals[vertexIndex] = -System.Numerics.Vector3.UnitZ;
-								normals[vertexIndex + 1] = -System.Numerics.Vector3.UnitZ;
-								normals[vertexIndex + 2] = -System.Numerics.Vector3.UnitZ;
-								normals[vertexIndex + 3] = -System.Numerics.Vector3.UnitZ;
-
-								// Define indices for two triangles (counterclockwise order for correct normals)
-								indices[indexOffset] = (ushort)(vertexIndex);
-								indices[indexOffset + 1] = (ushort)(vertexIndex + 1);
-								indices[indexOffset + 2] = (ushort)(vertexIndex + 2);
-
-								indices[indexOffset + 3] = (ushort)(vertexIndex + 1);
-								indices[indexOffset + 4] = (ushort)(vertexIndex + 3);
-								indices[indexOffset + 5] = (ushort)(vertexIndex + 2);
-
-								vertexIndex += 4;
-								indexOffset += 6;
-							}
-							break;
-						case BlockFace.PositiveZ:
-							if (GetBlockID(x, y, z + 1) == 0)
-							{
-								// Back face vertices
-								vertices[vertexIndex] = new System.Numerics.Vector3(x, y, z + 1);
-								vertices[vertexIndex + 1] = new System.Numerics.Vector3(x, y + 1, z + 1);
-								vertices[vertexIndex + 2] = new System.Numerics.Vector3(x + 1, y, z + 1);
-								vertices[vertexIndex + 3] = new System.Numerics.Vector3(x + 1, y + 1, z + 1);
-
-								texcoords[vertexIndex + 0] = new System.Numerics.Vector2((float)(atlasCoordinates.Item1 + textureAtlasBlockSize) / textureAtlasSize, (float)(atlasCoordinates.Item2 + textureAtlasBlockSize) / textureAtlasSize);
-								texcoords[vertexIndex + 1] = new System.Numerics.Vector2((float)(atlasCoordinates.Item1 + textureAtlasBlockSize) / textureAtlasSize, (float)atlasCoordinates.Item2 / textureAtlasSize);
-								texcoords[vertexIndex + 2] = new System.Numerics.Vector2((float)atlasCoordinates.Item1 / textureAtlasSize, (float)(atlasCoordinates.Item2 + textureAtlasBlockSize) / textureAtlasSize);
-								texcoords[vertexIndex + 3] = new System.Numerics.Vector2((float)atlasCoordinates.Item1 / textureAtlasSize, (float)atlasCoordinates.Item2 / textureAtlasSize);
-
-								normals[vertexIndex] = System.Numerics.Vector3.UnitZ;
-								normals[vertexIndex + 1] = System.Numerics.Vector3.UnitZ;
-								normals[vertexIndex + 2] = System.Numerics.Vector3.UnitZ;
-								normals[vertexIndex + 3] = System.Numerics.Vector3.UnitZ;
-
-								// Define indices for two triangles (counterclockwise order for correct normals)
-								indices[indexOffset] = (ushort)(vertexIndex + 2);
-								indices[indexOffset + 1] = (ushort)(vertexIndex + 1);
-								indices[indexOffset + 2] = (ushort)(vertexIndex + 0);
-
-								indices[indexOffset + 3] = (ushort)(vertexIndex + 2);
-								indices[indexOffset + 4] = (ushort)(vertexIndex + 3);
-								indices[indexOffset + 5] = (ushort)(vertexIndex + 1);
-
-								vertexIndex += 4;
-								indexOffset += 6;
-							}
-							break;
-						case BlockFace.NegativeX:
-							if (GetBlockID(x - 1, y, z) == 0)
-							{
-								// Left face vertices
-								vertices[vertexIndex] = new System.Numerics.Vector3(x, y, z);
-								vertices[vertexIndex + 1] = new System.Numerics.Vector3(x, y + 1, z);
-								vertices[vertexIndex + 2] = new System.Numerics.Vector3(x, y, z + 1);
-								vertices[vertexIndex + 3] = new System.Numerics.Vector3(x, y + 1, z + 1);
-
-								texcoords[vertexIndex + 0] = new System.Numerics.Vector2((float)(atlasCoordinates.Item1 + textureAtlasBlockSize) / textureAtlasSize, (float)(atlasCoordinates.Item2 + textureAtlasBlockSize) / textureAtlasSize);
-								texcoords[vertexIndex + 1] = new System.Numerics.Vector2((float)(atlasCoordinates.Item1 + textureAtlasBlockSize) / textureAtlasSize, (float)atlasCoordinates.Item2 / textureAtlasSize);
-								texcoords[vertexIndex + 2] = new System.Numerics.Vector2((float)atlasCoordinates.Item1 / textureAtlasSize, (float)(atlasCoordinates.Item2 + textureAtlasBlockSize) / textureAtlasSize);
-								texcoords[vertexIndex + 3] = new System.Numerics.Vector2((float)atlasCoordinates.Item1 / textureAtlasSize, (float)atlasCoordinates.Item2 / textureAtlasSize);
-
-								normals[vertexIndex] = -System.Numerics.Vector3.UnitX;
-								normals[vertexIndex + 1] = -System.Numerics.Vector3.UnitX;
-								normals[vertexIndex + 2] = -System.Numerics.Vector3.UnitX;
-								normals[vertexIndex + 3] = -System.Numerics.Vector3.UnitX;
-
-								// Define indices for two triangles (counterclockwise order for correct normals)
-								indices[indexOffset] = (ushort)(vertexIndex + 2);
-								indices[indexOffset + 1] = (ushort)(vertexIndex + 1);
-								indices[indexOffset + 2] = (ushort)(vertexIndex + 0);
-
-								indices[indexOffset + 3] = (ushort)(vertexIndex + 2);
-								indices[indexOffset + 4] = (ushort)(vertexIndex + 3);
-								indices[indexOffset + 5] = (ushort)(vertexIndex + 1);
-
-								vertexIndex += 4;
-								indexOffset += 6;
-							}
-							break;
-						case BlockFace.PositiveX:
-							if (GetBlockID(x + 1, y, z) == 0)
-							{
-								// Right face vertices
-								vertices[vertexIndex] = new System.Numerics.Vector3(x + 1, y, z);
-								vertices[vertexIndex + 1] = new System.Numerics.Vector3(x + 1, y + 1, z);
-								vertices[vertexIndex + 2] = new System.Numerics.Vector3(x + 1, y, z + 1);
-								vertices[vertexIndex + 3] = new System.Numerics.Vector3(x + 1, y + 1, z + 1);
-
-								texcoords[vertexIndex + 0] = new System.Numerics.Vector2((float)(atlasCoordinates.Item1 + textureAtlasBlockSize) / textureAtlasSize, (float)(atlasCoordinates.Item2 + textureAtlasBlockSize) / textureAtlasSize);
-								texcoords[vertexIndex + 1] = new System.Numerics.Vector2((float)(atlasCoordinates.Item1 + textureAtlasBlockSize) / textureAtlasSize, (float)atlasCoordinates.Item2 / textureAtlasSize);
-								texcoords[vertexIndex + 2] = new System.Numerics.Vector2((float)atlasCoordinates.Item1 / textureAtlasSize, (float)(atlasCoordinates.Item2 + textureAtlasBlockSize) / textureAtlasSize);
-								texcoords[vertexIndex + 3] = new System.Numerics.Vector2((float)atlasCoordinates.Item1 / textureAtlasSize, (float)atlasCoordinates.Item2 / textureAtlasSize);
-
-								normals[vertexIndex] = System.Numerics.Vector3.UnitX;
-								normals[vertexIndex + 1] = System.Numerics.Vector3.UnitX;
-								normals[vertexIndex + 2] = System.Numerics.Vector3.UnitX;
-								normals[vertexIndex + 3] = System.Numerics.Vector3.UnitX;
-
-								// Define indices for two triangles (counterclockwise order for correct normals)
-								indices[indexOffset] = (ushort)(vertexIndex);
-								indices[indexOffset + 1] = (ushort)(vertexIndex + 1);
-								indices[indexOffset + 2] = (ushort)(vertexIndex + 2);
-
-								indices[indexOffset + 3] = (ushort)(vertexIndex + 1);
-								indices[indexOffset + 4] = (ushort)(vertexIndex + 3);
-								indices[indexOffset + 5] = (ushort)(vertexIndex + 2);
-
-								vertexIndex += 4;
-								indexOffset += 6;
-							}
-							break;
-					}
-				}
-			}
+		//add all indices to the mesh
+		for (int i = 0; i < indices.Count; i++)
+		{
+			indicesSpan[i] = indices[i];
 		}
 
 		Raylib.UploadMesh(ref mesh, true);
-		BlockFaceModel[(int)face] = Raylib.LoadModelFromMesh(mesh);
+		model = Raylib.LoadModelFromMesh(mesh);
 
 		Material material = Raylib.LoadMaterialDefault();
 		material.Maps[(int)MaterialMapIndex.Albedo].Texture = BetaClient.Instance.terrainAtlas;
-		BlockFaceModel[(int)face].Materials[0] = material;
-		BlockFaceModel[(int)face].MaterialCount = 1;
+		model.Materials[0] = material;
+		model.MaterialCount = 1;
 
-		Raylib.SetModelMeshMaterial(ref BlockFaceModel[(int)face], 0, 0);
+		Raylib.SetModelMeshMaterial(ref model, 0, 0);
 	}
 
 	public void RegenerateBoundingBoxes()
@@ -434,6 +236,5 @@ public class Chunk
 			return;
 		}
 		_blockIDs[LocalCoordinatesToIndex(x, y, z)] = blockID;
-		RegenerateAllMesh();
 	}
 }
