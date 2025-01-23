@@ -1,7 +1,5 @@
 public class WoodenPlanksBlock : BlockDefinition
-{
-    public static readonly byte BlockID = 0x05;
-    
+{    
     public override byte ID { get { return 0x05; } }
     
     public override double BlastResistance { get { return 15; } }

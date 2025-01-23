@@ -13,7 +13,7 @@ public class BlockRegistry
 		{
 			//create an instance of the type
 			var block = (BlockDefinition)Activator.CreateInstance(blockType);
-			if (block.ID == 0) continue;
+			//if (block.ID == 0) continue;
 			//add the block to the dictionary
 			Blocks.Add(block.ID, block);
 		}
@@ -23,7 +23,7 @@ public class BlockRegistry
 	{
 		if (!Blocks.ContainsKey(id))
 		{
-			return null;
+			return Blocks[0];
 		}
 		return Blocks[id];
 	}
