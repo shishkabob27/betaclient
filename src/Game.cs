@@ -21,7 +21,8 @@ public class Game
 
 	int selectedHotbarSlot = 0;
 
-
+	//debug
+	bool showChunkBorders = true;
 	public Game()
 	{
 		BlockRegistry.RegisterBlocks();
@@ -91,7 +92,7 @@ public class Game
 			yaw += mousePositionDelta.X * CAMERA_ROTATION_SPEED;
 			pitch -= mousePositionDelta.Y * CAMERA_ROTATION_SPEED; 
 
-			const float maxPitch = (float)(Math.PI / 2 - 0.01);
+			const float maxPitch = (float)(Math.PI / 2 - 0.001);
 			if (pitch > maxPitch) pitch = maxPitch;
 			if (pitch < -maxPitch) pitch = -maxPitch;
 
@@ -105,7 +106,7 @@ public class Game
 
 			//player movement
 			System.Numerics.Vector3 move = new System.Numerics.Vector3(0, 0, 0);
-			const float speed = 4.0f;
+			const float speed = 4.3717f;
 			if (Raylib.IsKeyDown(KeyboardKey.W)) move.Z += speed * Raylib.GetFrameTime();
 			if (Raylib.IsKeyDown(KeyboardKey.S)) move.Z += -speed * Raylib.GetFrameTime();
 			if (Raylib.IsKeyDown(KeyboardKey.A)) move.X += -speed * Raylib.GetFrameTime();
@@ -123,9 +124,6 @@ public class Game
 				System.Numerics.Vector3 AttemptedMove = forward * move.Z + right * move.X;
 				
 				player.Position += new Vector3(AttemptedMove.X, AttemptedMove.Y, AttemptedMove.Z);
-
-
-				
 			}
 		}
 
@@ -216,7 +214,8 @@ public class Game
 				Vector3 pos = new Vector3(chunk.X * WorldConstants.ChunkWidth, 0, chunk.Z * WorldConstants.ChunkDepth);
 				//Color color = new Color(255, 0, 0, 50);
 				//if (chunk.HasRecivedData) color = new Color(0, 0, 255, 50);
-				//Raylib.DrawCubeWires(new System.Numerics.Vector3((float)pos.X + 8, (float)pos.Y + WorldConstants.Height/2, (float)pos.Z + 8), (float)WorldConstants.ChunkWidth, WorldConstants.Height, (float)WorldConstants.ChunkDepth, color);
+				if (showChunkBorders)
+				Raylib.DrawCubeWires(new System.Numerics.Vector3((float)pos.X + 8, (float)pos.Y + WorldConstants.Height/2, (float)pos.Z + 8), (float)WorldConstants.ChunkWidth, WorldConstants.Height, (float)WorldConstants.ChunkDepth, Color.White);
 		
 				if (chunk.HasRecivedData)
 				{
