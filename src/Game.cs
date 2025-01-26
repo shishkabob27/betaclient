@@ -100,6 +100,17 @@ public class Game
 		{
 			BetaClient.Instance.clientNetwork.SendPacket(new ChangeHeldItemPacket((short)selectedHotbarSlot));
 		}
+
+		//debug
+		if (Raylib.IsKeyPressed(KeyboardKey.F3))
+		{
+			showChunkBorders = !showChunkBorders;
+		}
+
+		if (Raylib.IsKeyPressed(KeyboardKey.F4))
+		{
+			World.GetPlayer().Position += new Vector3(0, 10, 0);
+		}
 	}
 
 	void UpdatePlayer()
