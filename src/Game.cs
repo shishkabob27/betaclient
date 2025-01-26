@@ -45,9 +45,11 @@ public class Game
 
 			if (preChunkPacket.Load)
 			{
-
-				c = new Chunk(preChunkPacket.X, preChunkPacket.Z);
-				World.AddChunk(c);
+				if (c == null)
+				{
+					c = new Chunk(preChunkPacket.X, preChunkPacket.Z);
+					World.AddChunk(c);
+				}
 			}
 			else
 			{
@@ -58,23 +60,20 @@ public class Game
 			}
 		}
 
-		List<ChunkDataPacket> waitingChunks = new List<ChunkDataPacket>();
 		foreach (var chunk in World.IncomingChunks)
 		{
 			Chunk c = World.GetChunk(chunk.X / WorldConstants.ChunkWidth, chunk.Z / WorldConstants.ChunkDepth);
 			if (c == null)
 			{
-				//hold this incomeing chunk
-				waitingChunks.Add(chunk);
-				continue;
+				//create it
+				c = new Chunk(chunk.X / WorldConstants.ChunkWidth, chunk.Z / WorldConstants.ChunkDepth);
+				World.AddChunk(c);
 			}
 			c.UpdateChunkData(chunk);
 		}
 
 		World.IncomingPreChunks.Clear();
 		World.IncomingChunks.Clear();
-
-		World.IncomingChunks = waitingChunks;
 
 		UpdatePlayer();
 
