@@ -45,7 +45,7 @@ public class CubeModeler : IBlockModeler
 			//temp grass color
 			if (blockID == 2)
 			{
-				Raylib_cs.Color grassColor = new Raylib_cs.Color(100, 255, 100, 255);
+				Raylib_cs.Color grassColor = new Raylib_cs.Color(158, 184, 109, 255);
 				colors.Add(grassColor);
 				colors.Add(grassColor);
 				colors.Add(grassColor);
