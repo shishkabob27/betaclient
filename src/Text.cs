@@ -42,6 +42,40 @@ public class Text
 		Color foreColor = new Color(255, 255, 255, 255);
 		Color backColor = new Color(63, 63, 63, 255);
 
+		int width = Measure(text);
+
+		switch (alignment)
+		{
+			case Alignment.TopCenter:
+				x -= width / 2;
+				break;
+			case Alignment.TopRight:
+				x -= width;
+				break;
+			case Alignment.MiddleLeft:
+				y -= 4;
+				break;
+			case Alignment.MiddleCenter:
+				x -= width / 2;
+				y -= 4;
+				break;
+			case Alignment.MiddleRight:
+				x -= width;
+				y -= 4;
+				break;
+			case Alignment.BottomLeft:
+				y -= 8;
+				break;
+			case Alignment.BottomCenter:
+				x -= width / 2;
+				y -= 8;
+				break;
+			case Alignment.BottomRight:
+				x -= width;
+				y -= 8;
+				break;
+		}
+
 		for (int i = 0; i < text.Length; i++)
 		{
 			//check if color code
@@ -53,23 +87,85 @@ public class Text
 
 				switch (r)
 				{
-					case 'd':
+					case '0': // Black
+						foreColor = new Color(0, 0, 0, 255);
+						backColor = new Color(0, 0, 0, 255);
+						break;
+					case '1': // Dark Blue
+						foreColor = new Color(0, 0, 170, 255);
+						backColor = new Color(0, 0, 42, 255);
+						break;
+					case '2': // Dark Green
+						foreColor = new Color(0, 170, 0, 255);
+						backColor = new Color(0, 42, 0, 255);
+						break;
+					case '3': // Dark Aqua
+						foreColor = new Color(0, 170, 170, 255);
+						backColor = new Color(0, 42, 42, 255);
+						break;
+					case '4': // Dark Red
+						foreColor = new Color(170, 0, 0, 255);
+						backColor = new Color(42, 0, 0, 255);
+						break;
+					case '5': // Dark Purple
+						foreColor = new Color(170, 0, 170, 255);
+						backColor = new Color(42, 0, 42, 255);
+						break;
+					case '6': // Gold
+						foreColor = new Color(255, 170, 0, 255);
+						backColor = new Color(42, 42, 0, 255);
+						break;
+					case '7': // Gray
+						foreColor = new Color(170, 170, 170, 255);
+						backColor = new Color(42, 42, 42, 255);
+						break;
+					case '8': // Dark Gray
+						foreColor = new Color(85, 85, 85, 255);
+						backColor = new Color(21, 21, 21, 255);
+						break;
+					case '9': // Indigo
+						foreColor = new Color(85, 85, 255, 255);
+						backColor = new Color(21, 21, 63, 255);
+						break;
+					case 'a': // Bright Green
+						foreColor = new Color(85, 255, 85, 255);
+						backColor = new Color(21, 63, 21, 255);
+						break;
+					case 'b': // Aqua
+						foreColor = new Color(85, 255, 255, 255);
+						backColor = new Color(21, 63, 63, 255);
+						break;
+					case 'c': // Red
+						foreColor = new Color(255, 85, 85, 255);
+						backColor = new Color(63, 21, 21, 255);
+						break;
+					case 'd': // Pink
 						foreColor = new Color(255, 85, 255, 255);
 						backColor = new Color(63, 21, 63, 255);
 						break;
-					case 'e':
+					case 'e': // Yellow
 						foreColor = new Color(255, 255, 85, 255);
 						backColor = new Color(63, 63, 21, 255);
 						break;
-					case 'r':
+					case 'f': // White
+					case 'r': // Reset
 						foreColor = new Color(255, 255, 255, 255);
 						backColor = new Color(63, 63, 63, 255);
 						break;
 				}
 			}
 
+ 
+			int index = 0;
+			try
+			{
+				index = characters.IndexOf(text[i]) + 32;
+			}
+			catch
+			{
+				index = -1;
+			}
 
-			int index = characters.IndexOf(text[i]) + 32;
 			if (index == -1)
 			{
 				continue;
@@ -84,5 +180,29 @@ public class Text
 
 			x += kernTable[index];
 		}
+	}
+
+	public static int Measure(string text)
+	{
+		int width = 0;
+
+		for (int i = 0; i < text.Length; i++)
+		{
+			if (text[i] == '§')
+			{
+				i++;
+				continue;
+			}
+
+			int index = characters.IndexOf(text[i]) + 32;
+			if (index == -1)
+			{
+				continue;
+			}
+
+			width += kernTable[index];
+		}
+
+		return width;
 	}
 }
