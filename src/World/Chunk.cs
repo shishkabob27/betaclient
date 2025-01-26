@@ -163,25 +163,42 @@ public class Chunk
 					
 					byte blockID = GetBlockID(x, y, z);
 					if (blockID == 0) continue;
+					
+					List<byte> blockIDs = new List<byte>(){
+						GetBlockID(x, y + 1, z),
+						GetBlockID(x, y - 1, z),
+						GetBlockID(x + 1, y, z),
+						GetBlockID(x - 1, y, z),
+						GetBlockID(x, y, z + 1),
+						GetBlockID(x, y, z - 1)
+					};
 
-					/*
-					List<byte> blockIDs = new List<byte>();
-					blockIDs.Add(GetBlockID(x, y + 1, z));
-					blockIDs.Add(GetBlockID(x, y - 1, z));
-					blockIDs.Add(GetBlockID(x + 1, y, z));
-					blockIDs.Add(GetBlockID(x - 1, y, z));
-					blockIDs.Add(GetBlockID(x, y, z + 1));
-					blockIDs.Add(GetBlockID(x, y, z - 1));
+					bool hasAtLeastOneFaceVisible = false;
 
 					for (int i = 0; i < blockIDs.Count; i++)
 					{
 						if (blockIDs[i] == 0)
 						{
-							BlockDefinition def = BlockRegistry.GetBlock(blockIDs[i]);
-							if (def != null && def.Opaque) continue;
+							hasAtLeastOneFaceVisible = true;
+							continue;
+						}
+
+						BlockDefinition blockDef = BlockRegistry.GetBlock(blockIDs[i]);
+						if (blockDef == null)
+						{
+							hasAtLeastOneFaceVisible = true;
+							continue;
+						}
+
+						if (!blockDef.Opaque)
+						{
+							hasAtLeastOneFaceVisible = true;
+							continue;
 						}
 					}
-					*/
+
+					if (!hasAtLeastOneFaceVisible) continue;
+					
 					
 					BlockDefinition block = BlockRegistry.GetBlock(blockID);
 					

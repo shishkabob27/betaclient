@@ -20,6 +20,10 @@ public class Entity
 	/// </remarks>
 	public Vector3 Position { get; set; }
 
+	/// <summary>
+	/// Gets or sets the Velocity of the Entity.
+	/// </summary>
+	public Vector3 Velocity { get; set; }
 
 	/// <summary>
 	/// Gets or sets the Yaw of the Entity.
@@ -30,4 +34,19 @@ public class Entity
 	/// Gets or sets the Pitch of the Entity.
 	/// </summary>
 	public float Pitch { get; set; }
+
+	/// <summary>
+	/// Acceleration due to gravity in meters per second squared.
+	/// </summary>
+	public float AccelerationDueToGravity { get; set; }
+
+	/// <summary>
+	/// Velocity *= (1 - Drag) each second
+	/// </summary>
+	public float Drag { get; set; }
+
+	/// <summary>
+	/// Terminal velocity in meters per second.
+	/// </summary>
+	public float TerminalVelocity { get; set; }
 }
