@@ -176,12 +176,13 @@ public class MinecraftStream : Stream
 		var result = new byte[length];
 		if (length == 0) return result;
 		int n = length;
-		while (true) {
-				n -= Read(result, length - n, n);
-				if (n == 0)
-					break;
-				System.Threading.Thread.Sleep(1);
-			}
+		while (n > 0)
+		{
+			int read = _baseStream.Read(result, length - n, n);
+			if (read == 0)
+				throw new EndOfStreamException();
+			n -= read;
+		}
 		return result;
 	}
 
