@@ -70,6 +70,8 @@ public struct LoginResponsePacket : IPacket
         Logger.Debug($"Seed: {Seed}");
         Logger.Debug($"Dimension: {Dimension}");
 
+        BetaClient.Game.World.Dimension = Dimension;
+
         //create player entity
         BetaClient.Game.World.PlayerID = EntityID;
         PlayerEntity player = new PlayerEntity();

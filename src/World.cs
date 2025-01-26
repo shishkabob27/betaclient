@@ -10,6 +10,8 @@ public class World
 	public Vector3 SpawnPosition { get; set; }
 	public long Time { get; set; }
 
+	public sbyte Dimension { get; set; } = 0;
+
 	public bool ReceivedFirstPlayerPosition { get; set; } = false;
 
 	public World()

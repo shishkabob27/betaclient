@@ -199,6 +199,11 @@ public class Game
 
 	public void Draw()
 	{
+		if (World.Dimension == 0) // Overworld
+			Raylib.ClearBackground(new Color(176, 201, 200, 255));
+		else // Nether
+			Raylib.ClearBackground(new Color(255, 0, 0, 255));
+
 		Raylib.BeginMode3D(camera);
 
 			//draw chunks

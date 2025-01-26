@@ -97,8 +97,6 @@ public class BetaClient
 	public void Draw()
 	{
 		Raylib.BeginDrawing();
-			Raylib.ClearBackground(new Color(176, 201, 200, 255));
-			
 			Game.Draw();
 		Raylib.EndDrawing();
 	}
