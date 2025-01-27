@@ -21,6 +21,7 @@ public class ClientNetwork
 		{ 0x05, typeof(EntityEquipmentPacket) },
 		{ 0x06, typeof(SpawnPositionPacket) },
 		{ 0x08, typeof(UpdateHealthPacket) },
+		{ 0x09, typeof(RespawnPacket) },
 		{ 0x0A, typeof(PlayerGroundedPacket) },
 		{ 0x0D, typeof(SetPlayerPositionPacket) },
 		{ 0x12, typeof(AnimationPacket) },
