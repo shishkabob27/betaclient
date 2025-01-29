@@ -65,7 +65,6 @@ public class Chunk
 						blockID == 38 ||
 						blockID == 39 ||
 						blockID == 40 ||
-						blockID == 59 ||
 						blockID == 83
 					)
 					{
