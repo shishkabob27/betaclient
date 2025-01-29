@@ -161,6 +161,7 @@ public class Game
 		foreach (var chunk in validChunks)
 		{
 			Chunk c = World.GetChunk((int)chunk.X, (int)chunk.Y);
+			if (c == null) continue;
 			foreach (var bbox in c.BoundingBoxes)
 			{
 				//check if the bounding box is close to the player
