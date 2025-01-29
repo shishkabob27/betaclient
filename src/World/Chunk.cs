@@ -71,6 +71,14 @@ public class Chunk
 					{
 						modeler = new QuadModeler();
 					}
+					else if (
+						blockID == 50 ||
+						blockID == 75 ||
+						blockID == 76
+					)
+					{
+						modeler = new TorchModeler();
+					}
 					else
 					{
 						modeler = new CubeModeler();
