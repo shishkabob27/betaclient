@@ -72,7 +72,7 @@ public class BetaClient
 
 		Game.Update();
 
-		if (Raylib.IsKeyPressed(KeyboardKey.F1))
+		if (Raylib.IsKeyPressed(KeyboardKey.F2))
 		{
 			//toggle cursor
 			if (Raylib.IsCursorHidden())

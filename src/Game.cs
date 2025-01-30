@@ -21,6 +21,8 @@ public class Game
 
 	int selectedHotbarSlot = 0;
 
+	bool ShouldDrawUI = true;
+
 	//debug
 	bool showChunkBorders = true;
 	public Game()
@@ -98,6 +100,11 @@ public class Game
 		if (oldSelectedHotbarSlot != selectedHotbarSlot)
 		{
 			BetaClient.Instance.clientNetwork.SendPacket(new ChangeHeldItemPacket((short)selectedHotbarSlot));
+		}
+
+		if (Raylib.IsKeyPressed(KeyboardKey.F1))
+		{
+			ShouldDrawUI = !ShouldDrawUI;
 		}
 
 		//debug
@@ -324,6 +331,7 @@ public class Game
 				{
 					Raylib.DrawModel(chunk.model, new System.Numerics.Vector3((float)pos.X, (float)pos.Y, (float)pos.Z), 1.0f, Color.White);
 
+					/*
 					//only render bounding boxes arround chunks that the player is in
 					List<Vector2> surroundingplayerChunks = new List<Vector2>()
 					{
@@ -351,6 +359,7 @@ public class Game
 							}							
 						}
 					}
+					*/
 				}
 			}
 
@@ -368,7 +377,7 @@ public class Game
 
 		Raylib.EndMode3D();
 
-		DrawUI();
+		if (ShouldDrawUI) DrawUI();
 	}
 
 	public void DrawUI()
