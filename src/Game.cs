@@ -149,7 +149,9 @@ public class Game
 
 		//if this chunk isnt loaded, dont update the player
 		if (World.ReceivedFirstPlayerPosition == false) return;
-		if (World.GetChunk((int)GetPlayerChunkPos().X, (int)GetPlayerChunkPos().Y) == null) return;
+		Chunk playerChunk = World.GetChunk((int)GetPlayerChunkPos().X, (int)GetPlayerChunkPos().Y);
+		if (playerChunk == null) return;
+		if (playerChunk.HasRecivedData == false) return; 
 		
 		//get all valid bounding boxes around the player
 		List<BoundingBox> validBoundingBoxes = new List<BoundingBox>();
