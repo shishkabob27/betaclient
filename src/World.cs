@@ -68,4 +68,20 @@ public class World
 		}
 		return 0;
 	}
+
+	public void DestroyNonPlayerEntities()
+	{
+		List<int> toRemove = new List<int>();
+		foreach (var entity in Entities)
+		{
+			if (entity.Value is PlayerEntity player && player.EntityID != PlayerID)
+			{
+				toRemove.Add(entity.Key);
+			}
+		}
+		foreach (var id in toRemove)
+		{
+			Entities.Remove(id);
+		}
+	}
 }

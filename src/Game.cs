@@ -107,6 +107,7 @@ public class Game
 		if (Raylib.IsKeyPressed(KeyboardKey.R) && World.GetPlayer().Health <= 0)
 		{
 			BetaClient.Instance.clientNetwork.SendPacket(new RespawnPacket());
+			World.DestroyNonPlayerEntities();
 		}
 
 		if (Raylib.IsKeyPressed(KeyboardKey.F1))
