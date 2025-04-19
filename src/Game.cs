@@ -102,6 +102,12 @@ public class Game
 			BetaClient.Instance.clientNetwork.SendPacket(new ChangeHeldItemPacket((short)selectedHotbarSlot));
 		}
 
+		//Respawn
+		if (Raylib.IsKeyPressed(KeyboardKey.R) && World.GetPlayer().Health <= 0)
+		{
+			BetaClient.Instance.clientNetwork.SendPacket(new RespawnPacket());
+		}
+
 		if (Raylib.IsKeyPressed(KeyboardKey.F1))
 		{
 			ShouldDrawUI = !ShouldDrawUI;
@@ -152,6 +158,7 @@ public class Game
 		Chunk playerChunk = World.GetChunk((int)GetPlayerChunkPos().X, (int)GetPlayerChunkPos().Y);
 		if (playerChunk == null) return;
 		if (playerChunk.HasRecivedData == false) return; 
+		if (player.Health <= 0) return;
 		
 		//get all valid bounding boxes around the player
 		List<BoundingBox> validBoundingBoxes = new List<BoundingBox>();
@@ -403,6 +410,44 @@ public class Game
 		Raylib.BeginTextureMode(UIRenderTexture);
 		Raylib.ClearBackground(Color.Blank);
 
+		if (World.GetPlayer().Health <= 0)
+		{
+			DrawDeathUI();
+		}
+		else
+		{
+			DrawGameplayUI();
+		}
+
+		//debug
+		Text.Draw("reMine Beta 1.7.3", 2, 2, Text.Alignment.TopLeft);
+		Text.Draw("FPS: " + Raylib.GetFPS(), 2, 12, Text.Alignment.TopLeft);
+		//Text.Draw(" !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~", 2, 22, Text.Alignment.TopLeft);
+
+		Text.Draw("X: " + World.GetPlayer().Position.X.ToString("0.000"), 2, 32, Text.Alignment.TopLeft);
+		Text.Draw("Y: " + World.GetPlayer().Position.Y.ToString("0.000"), 2, 42, Text.Alignment.TopLeft);
+		Text.Draw("Z: " + World.GetPlayer().Position.Z.ToString("0.000"), 2, 52, Text.Alignment.TopLeft);
+
+		Text.Draw("Yaw: " + yaw.ToString("0.000"), 2, 62, Text.Alignment.TopLeft);
+		Text.Draw("Pitch: " + pitch.ToString("0.000"), 2, 72, Text.Alignment.TopLeft);
+
+		Text.Draw("Velocity: " + World.GetPlayer().Velocity.ToString(), 2, 82, Text.Alignment.TopLeft);
+
+		Text.Draw("PlayerIsOnGround: " + PlayerIsOnGround, 2, 92, Text.Alignment.TopLeft);
+
+		Raylib.EndTextureMode();
+		//draw render texture
+		Raylib.DrawTexturePro(UIRenderTexture.Texture, new Rectangle(0, 0, UIRenderTexture.Texture.Width, -UIRenderTexture.Texture.Height), new Rectangle(0, 0, Raylib.GetScreenWidth(), Raylib.GetScreenHeight()), new Vector2(0, 0), 0, Color.White);
+	}
+
+	public void DrawGameplayUI()
+	{
+		float scale = 2;
+		int MiddleX = (int)(Raylib.GetScreenWidth() / scale / 2);
+		int MiddleY = (int)(Raylib.GetScreenHeight() / scale / 2);
+		int BottomY = (int)(Raylib.GetScreenHeight() / scale);
+		int BottomX = (int)(Raylib.GetScreenWidth() / scale);
+
 		//draw hotbar
 		Raylib.DrawTextureRec(BetaClient.Instance.guiAtlas, new Rectangle(0, 0, 182, 22), new Vector2(MiddleX - 91, BottomY - 22), Color.White);
 
@@ -444,26 +489,21 @@ public class Game
 			Text.Draw(chatHistory[i].Item1, 2, chatY, Text.Alignment.TopLeft);
 			chatY -= 9;
 		}
+	}
 
-		//debug
-		Text.Draw("reMine Beta 1.7.3", 2, 2, Text.Alignment.TopLeft);
-		Text.Draw("FPS: " + Raylib.GetFPS(), 2, 12, Text.Alignment.TopLeft);
-		//Text.Draw(" !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~", 2, 22, Text.Alignment.TopLeft);
+	public void DrawDeathUI()
+	{
+		float scale = 2;
+		int MiddleX = (int)(Raylib.GetScreenWidth() / scale / 2);
+		int MiddleY = (int)(Raylib.GetScreenHeight() / scale / 2);
+		int BottomY = (int)(Raylib.GetScreenHeight() / scale);
+		int BottomX = (int)(Raylib.GetScreenWidth() / scale);
 
-		Text.Draw("X: " + World.GetPlayer().Position.X.ToString("0.000"), 2, 32, Text.Alignment.TopLeft);
-		Text.Draw("Y: " + World.GetPlayer().Position.Y.ToString("0.000"), 2, 42, Text.Alignment.TopLeft);
-		Text.Draw("Z: " + World.GetPlayer().Position.Z.ToString("0.000"), 2, 52, Text.Alignment.TopLeft);
+		Raylib.DrawRectangle(0, 0, BottomX, BottomY, new Color(200, 0, 0, 150));
 
-		Text.Draw("Yaw: " + yaw.ToString("0.000"), 2, 62, Text.Alignment.TopLeft);
-		Text.Draw("Pitch: " + pitch.ToString("0.000"), 2, 72, Text.Alignment.TopLeft);
+		Text.Draw("Game Over!", MiddleX - 40, BottomY - 50, Text.Alignment.TopLeft);
 
-		Text.Draw("Velocity: " + World.GetPlayer().Velocity.ToString(), 2, 82, Text.Alignment.TopLeft);
-
-		Text.Draw("PlayerIsOnGround: " + PlayerIsOnGround, 2, 92, Text.Alignment.TopLeft);
-
-		Raylib.EndTextureMode();
-		//draw render texture
-		Raylib.DrawTexturePro(UIRenderTexture.Texture, new Rectangle(0, 0, UIRenderTexture.Texture.Width, -UIRenderTexture.Texture.Height), new Rectangle(0, 0, Raylib.GetScreenWidth(), Raylib.GetScreenHeight()), new Vector2(0, 0), 0, Color.White);
+		Text.Draw("Press R to respawn", MiddleX - 40, BottomY - 40, Text.Alignment.TopLeft);
 	}
 
 	public Vector2 GetPlayerChunkPos()
