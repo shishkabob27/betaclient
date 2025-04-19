@@ -24,7 +24,8 @@ public class Game
 	bool ShouldDrawUI = true;
 
 	//debug
-	bool showChunkBorders = true;
+	bool showChunkBorders = false;
+
 	public Game()
 	{
 		BlockRegistry.RegisterBlocks();
@@ -430,10 +431,11 @@ public class Game
 
 		Text.Draw("Yaw: " + yaw.ToString("0.000"), 2, 62, Text.Alignment.TopLeft);
 		Text.Draw("Pitch: " + pitch.ToString("0.000"), 2, 72, Text.Alignment.TopLeft);
-
 		Text.Draw("Velocity: " + World.GetPlayer().Velocity.ToString(), 2, 82, Text.Alignment.TopLeft);
-
 		Text.Draw("PlayerIsOnGround: " + PlayerIsOnGround, 2, 92, Text.Alignment.TopLeft);
+		Text.Draw("PlayerID: " + World.GetPlayer().EntityID, 2, 102, Text.Alignment.TopLeft);
+		Text.Draw("Chunks: " + World.Chunks.Count, 2, 132, Text.Alignment.TopLeft);
+		Text.Draw("Entities: " + World.Entities.Count, 2, 142, Text.Alignment.TopLeft);
 
 		Raylib.EndTextureMode();
 		//draw render texture
