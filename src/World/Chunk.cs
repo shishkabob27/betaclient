@@ -7,6 +7,9 @@ public class Chunk
 	public int X, Z;
 	public bool HasRecivedData = false;
 	public byte[] _blockIDs;
+	public NybbleArray Metadata { get; private set; }
+	public NybbleArray BlockLight { get; private set; }
+	public NybbleArray SkyLight { get; private set; }
 
 	public Model model;
 
@@ -25,11 +28,24 @@ public class Chunk
 		using (var ds = new ZLibStream(compressedStream, CompressionMode.Decompress))
         {
 			HasRecivedData = true;
+
+			if (packet.Width == WorldConstants.ChunkWidth && packet.Height == WorldConstants.Height && packet.Depth == WorldConstants.ChunkDepth)
+			{
+			}
+			else
+			{
+				Logger.Warn($"small chunk: {packet.Width}x{packet.Height}x{packet.Depth}");
+				return;
+			}
+			
 	
 			int blockCount = WorldConstants.ChunkDepth * WorldConstants.ChunkWidth * WorldConstants.Height * 5 / 2;
 			_blockIDs = new byte[blockCount];
 			
 			ds.Read(_blockIDs, 0, blockCount);
+			Metadata = new NybbleArray(ds, blockCount);
+			BlockLight = new NybbleArray(ds, blockCount);
+			SkyLight = new NybbleArray(ds, blockCount);
 
 			RegenerateMesh();
 			RegenerateBoundingBoxes();
@@ -83,7 +99,7 @@ public class Chunk
 						modeler = new CubeModeler();
 					}
 
-					modeler.RenderBlock(this, x, y, z, ref vertices, ref texcoords, ref normals, ref colors, ref indices);
+					modeler.RenderBlock(this, x, y, z, GetMetadata(x, y, z), GetBlockLight(x, y, z), GetSkyLight(x, y, z), ref vertices, ref texcoords, ref normals, ref colors, ref indices);
 				}
 			}
 		}
@@ -151,6 +167,7 @@ public class Chunk
 
 		Material material = Raylib.LoadMaterialDefault();
 		material.Maps[(int)MaterialMapIndex.Albedo].Texture = BetaClient.Instance.terrainAtlas;
+		material.Maps[(int)MaterialMapIndex.Diffuse].Texture = BetaClient.Instance.terrainAtlas;
 		model.Materials[0] = material;
 		model.MaterialCount = 1;
 
@@ -216,6 +233,9 @@ public class Chunk
 						boundingBox = block.BoundingBox;
 					}
 
+					//if bounding box is zero, then skip this block
+					if (boundingBox.Min == System.Numerics.Vector3.Zero && boundingBox.Max == System.Numerics.Vector3.Zero) continue;
+
 					boundingBox.Min += new System.Numerics.Vector3(x + X * WorldConstants.ChunkWidth, y, z + Z * WorldConstants.ChunkDepth);
 					boundingBox.Max += new System.Numerics.Vector3(x + X * WorldConstants.ChunkWidth, y, z + Z * WorldConstants.ChunkDepth);
 					BoundingBoxes.Add(boundingBox);
@@ -260,5 +280,62 @@ public class Chunk
 			return;
 		}
 		_blockIDs[LocalCoordinatesToIndex(x, y, z)] = blockID;
+	}
+
+	public byte GetMetadata(int x, int y, int z)
+	{
+		if (x < 0 || x >= WorldConstants.ChunkWidth || y < 0 || y >= WorldConstants.Height || z < 0 || z >= WorldConstants.ChunkDepth)
+		{
+			return 0;
+		}
+		return Metadata[LocalCoordinatesToIndex(x, y, z)];
+	}
+
+	public void SetMetadata(int x, int y, int z, byte metadata)
+	{
+		if (x < 0 || x >= WorldConstants.ChunkWidth || y < 0 || y >= WorldConstants.Height || z < 0 || z >= WorldConstants.ChunkDepth)
+		{
+			Debug.WriteLine($"Attempted to set metadata at invalid coordinates ({x}, {y}, {z})");
+			return;
+		}
+		Metadata[LocalCoordinatesToIndex(x, y, z)] = metadata;
+	}
+
+	public byte GetBlockLight(int x, int y, int z)
+	{
+		if (x < 0 || x >= WorldConstants.ChunkWidth || y < 0 || y >= WorldConstants.Height || z < 0 || z >= WorldConstants.ChunkDepth)
+		{
+			return 0;
+		}
+		return BlockLight[LocalCoordinatesToIndex(x, y, z)];
+	}
+
+	public void SetBlockLight(int x, int y, int z, byte blockLight)
+	{
+		if (x < 0 || x >= WorldConstants.ChunkWidth || y < 0 || y >= WorldConstants.Height || z < 0 || z >= WorldConstants.ChunkDepth)
+		{
+			Debug.WriteLine($"Attempted to set block light at invalid coordinates ({x}, {y}, {z})");
+			return;
+		}
+		BlockLight[LocalCoordinatesToIndex(x, y, z)] = blockLight;
+	}
+
+	public byte GetSkyLight(int x, int y, int z)
+	{
+		if (x < 0 || x >= WorldConstants.ChunkWidth || y < 0 || y >= WorldConstants.Height || z < 0 || z >= WorldConstants.ChunkDepth)
+		{
+			return 0;
+		}
+		return SkyLight[LocalCoordinatesToIndex(x, y, z)];
+	}
+
+	public void SetSkyLight(int x, int y, int z, byte skyLight)
+	{
+		if (x < 0 || x >= WorldConstants.ChunkWidth || y < 0 || y >= WorldConstants.Height || z < 0 || z >= WorldConstants.ChunkDepth)
+		{
+			Debug.WriteLine($"Attempted to set sky light at invalid coordinates ({x}, {y}, {z})");
+			return;
+		}
+		SkyLight[LocalCoordinatesToIndex(x, y, z)] = skyLight;
 	}
 }

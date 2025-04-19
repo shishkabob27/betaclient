@@ -1,13 +1,13 @@
 public class QuadModeler : IBlockModeler
 {
-	public void RenderBlock(Chunk chunk, int x, int y, int z, ref List<System.Numerics.Vector3> vertices, ref List<System.Numerics.Vector2> texcoords, ref List<System.Numerics.Vector3> normals, ref List<Raylib_cs.Color> colors, ref List<ushort> indices)
+	public void RenderBlock(Chunk chunk, int x, int y, int z, byte metadata, byte blocklight, byte skylight, ref List<System.Numerics.Vector3> vertices, ref List<System.Numerics.Vector2> texcoords, ref List<System.Numerics.Vector3> normals, ref List<Raylib_cs.Color> colors, ref List<ushort> indices)
 	{
 		byte blockID = chunk.GetBlockID(x, y, z);
 
 		int textureAtlasSize = BetaClient.Instance.terrainAtlas.Width;
 		int textureAtlasBlockSize = 16; //16x16
 
-		Tuple<int, int> atlasCoordinates = GetTextureMap(blockID);
+		Tuple<int, int> atlasCoordinates = GetTextureMap(blockID, metadata);
 
 		//if (chunk.GetBlockID(x, y, z - 1) == 0) // Front face (negative z)
 		{
@@ -132,13 +132,13 @@ public class QuadModeler : IBlockModeler
 		
 	}
 
-	public static Tuple<int, int> GetTextureMap(byte blockID)
+	public static Tuple<int, int> GetTextureMap(byte blockID, byte metadata)
 	{
 		BlockDefinition block = BlockRegistry.GetBlock(blockID);
 		Tuple<int, int> atlasCoordinates = new Tuple<int, int>(0, 14);
 		if (block != null)
 		{
-			atlasCoordinates = block.GetTextureMap(0, 0);
+			atlasCoordinates = block.GetTextureMap(metadata, 0);
 		}
 		return new Tuple<int, int>(atlasCoordinates.Item1 * 16, atlasCoordinates.Item2 * 16);
 	}

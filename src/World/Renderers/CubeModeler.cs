@@ -1,6 +1,6 @@
 public class CubeModeler : IBlockModeler
 {
-	public void RenderBlock(Chunk chunk, int x, int y, int z, ref List<System.Numerics.Vector3> vertices, ref List<System.Numerics.Vector2> texcoords, ref List<System.Numerics.Vector3> normals, ref List<Raylib_cs.Color> colors, ref List<ushort> indices)
+	public void RenderBlock(Chunk chunk, int x, int y, int z, byte metadata, byte blocklight, byte skylight, ref List<System.Numerics.Vector3> vertices, ref List<System.Numerics.Vector2> texcoords, ref List<System.Numerics.Vector3> normals, ref List<Raylib_cs.Color> colors, ref List<ushort> indices)
 	{
 		byte blockID = chunk.GetBlockID(x, y, z);
 		BlockDefinition block = BlockRegistry.GetBlock(blockID);
@@ -31,7 +31,7 @@ public class CubeModeler : IBlockModeler
 			vertices.Add(new System.Numerics.Vector3(x + 1, y + 1, z + 1));
 
 
-			Tuple<int, int> atlasCoordinates = GetTextureMap(blockID, BlockFace.PositiveY);
+			Tuple<int, int> atlasCoordinates = GetTextureMap(blockID, BlockFace.PositiveY, metadata);
 			texcoords.Add(new System.Numerics.Vector2((float)atlasCoordinates.Item1 / textureAtlasSize, (float)atlasCoordinates.Item2 / textureAtlasSize));
 			texcoords.Add(new System.Numerics.Vector2((float)atlasCoordinates.Item1 / textureAtlasSize, (float)(atlasCoordinates.Item2 + textureAtlasBlockSize) / textureAtlasSize));
 			texcoords.Add(new System.Numerics.Vector2((float)(atlasCoordinates.Item1 + textureAtlasBlockSize) / textureAtlasSize, (float)atlasCoordinates.Item2 / textureAtlasSize));
@@ -74,7 +74,7 @@ public class CubeModeler : IBlockModeler
 			vertices.Add(new System.Numerics.Vector3(x + 1, y, z));
 			vertices.Add(new System.Numerics.Vector3(x + 1, y, z + 1));
 
-			Tuple<int, int> atlasCoordinates = GetTextureMap(blockID, BlockFace.NegativeY);
+			Tuple<int, int> atlasCoordinates = GetTextureMap(blockID, BlockFace.NegativeY, metadata);
 			texcoords.Add(new System.Numerics.Vector2((float)atlasCoordinates.Item1 / textureAtlasSize, (float)atlasCoordinates.Item2 / textureAtlasSize));
 			texcoords.Add(new System.Numerics.Vector2((float)atlasCoordinates.Item1 / textureAtlasSize, (float)(atlasCoordinates.Item2 + textureAtlasBlockSize) / textureAtlasSize));
 			texcoords.Add(new System.Numerics.Vector2((float)(atlasCoordinates.Item1 + textureAtlasBlockSize) / textureAtlasSize, (float)atlasCoordinates.Item2 / textureAtlasSize));
@@ -105,7 +105,7 @@ public class CubeModeler : IBlockModeler
 			vertices.Add(new System.Numerics.Vector3(x + 1, y, z));
 			vertices.Add(new System.Numerics.Vector3(x + 1, y + 1, z));
 
-			Tuple<int, int> atlasCoordinates = GetTextureMap(blockID, BlockFace.NegativeZ);
+			Tuple<int, int> atlasCoordinates = GetTextureMap(blockID, BlockFace.NegativeZ, metadata);
 			texcoords.Add(new System.Numerics.Vector2((float)(atlasCoordinates.Item1 + textureAtlasBlockSize) / textureAtlasSize, (float)(atlasCoordinates.Item2 + textureAtlasBlockSize) / textureAtlasSize));
 			texcoords.Add(new System.Numerics.Vector2((float)(atlasCoordinates.Item1 + textureAtlasBlockSize) / textureAtlasSize, (float)atlasCoordinates.Item2 / textureAtlasSize));
 			texcoords.Add(new System.Numerics.Vector2((float)atlasCoordinates.Item1 / textureAtlasSize, (float)(atlasCoordinates.Item2 + textureAtlasBlockSize) / textureAtlasSize));
@@ -136,7 +136,7 @@ public class CubeModeler : IBlockModeler
 			vertices.Add(new System.Numerics.Vector3(x + 1, y, z + 1));
 			vertices.Add(new System.Numerics.Vector3(x + 1, y + 1, z + 1));
 
-			Tuple<int, int> atlasCoordinates = GetTextureMap(blockID, BlockFace.PositiveZ);
+			Tuple<int, int> atlasCoordinates = GetTextureMap(blockID, BlockFace.PositiveZ, metadata);
 			texcoords.Add(new System.Numerics.Vector2((float)(atlasCoordinates.Item1 + textureAtlasBlockSize) / textureAtlasSize, (float)(atlasCoordinates.Item2 + textureAtlasBlockSize) / textureAtlasSize));
 			texcoords.Add(new System.Numerics.Vector2((float)(atlasCoordinates.Item1 + textureAtlasBlockSize) / textureAtlasSize, (float)atlasCoordinates.Item2 / textureAtlasSize));
 			texcoords.Add(new System.Numerics.Vector2((float)atlasCoordinates.Item1 / textureAtlasSize, (float)(atlasCoordinates.Item2 + textureAtlasBlockSize) / textureAtlasSize));
@@ -167,7 +167,7 @@ public class CubeModeler : IBlockModeler
 			vertices.Add(new System.Numerics.Vector3(x, y, z + 1));
 			vertices.Add(new System.Numerics.Vector3(x, y + 1, z + 1));
 
-			Tuple<int, int> atlasCoordinates = GetTextureMap(blockID, BlockFace.NegativeX);
+			Tuple<int, int> atlasCoordinates = GetTextureMap(blockID, BlockFace.NegativeX, metadata);
 			texcoords.Add(new System.Numerics.Vector2((float)(atlasCoordinates.Item1 + textureAtlasBlockSize) / textureAtlasSize, (float)(atlasCoordinates.Item2 + textureAtlasBlockSize) / textureAtlasSize));
 			texcoords.Add(new System.Numerics.Vector2((float)(atlasCoordinates.Item1 + textureAtlasBlockSize) / textureAtlasSize, (float)atlasCoordinates.Item2 / textureAtlasSize));
 			texcoords.Add(new System.Numerics.Vector2((float)atlasCoordinates.Item1 / textureAtlasSize, (float)(atlasCoordinates.Item2 + textureAtlasBlockSize) / textureAtlasSize));
@@ -198,7 +198,7 @@ public class CubeModeler : IBlockModeler
 			vertices.Add(new System.Numerics.Vector3(x + 1, y, z + 1));
 			vertices.Add(new System.Numerics.Vector3(x + 1, y + 1, z + 1));
 
-			Tuple<int, int> atlasCoordinates = GetTextureMap(blockID, BlockFace.PositiveX);
+			Tuple<int, int> atlasCoordinates = GetTextureMap(blockID, BlockFace.PositiveX, metadata);
 			texcoords.Add(new System.Numerics.Vector2((float)(atlasCoordinates.Item1 + textureAtlasBlockSize) / textureAtlasSize, (float)(atlasCoordinates.Item2 + textureAtlasBlockSize) / textureAtlasSize));
 			texcoords.Add(new System.Numerics.Vector2((float)(atlasCoordinates.Item1 + textureAtlasBlockSize) / textureAtlasSize, (float)atlasCoordinates.Item2 / textureAtlasSize));
 			texcoords.Add(new System.Numerics.Vector2((float)atlasCoordinates.Item1 / textureAtlasSize, (float)(atlasCoordinates.Item2 + textureAtlasBlockSize) / textureAtlasSize));
@@ -223,13 +223,13 @@ public class CubeModeler : IBlockModeler
 		}
 	}
 
-	public static Tuple<int, int> GetTextureMap(byte blockID, BlockFace face)
+	public static Tuple<int, int> GetTextureMap(byte blockID, BlockFace face, byte metadata)
 	{
 		BlockDefinition block = BlockRegistry.GetBlock(blockID);
 		Tuple<int, int> atlasCoordinates = new Tuple<int, int>(0, 14);
 		if (block != null)
 		{
-			atlasCoordinates = block.GetTextureMap(0, face);
+			atlasCoordinates = block.GetTextureMap(metadata, face);
 		}
 		return new Tuple<int, int>(atlasCoordinates.Item1 * 16, atlasCoordinates.Item2 * 16);
 	}

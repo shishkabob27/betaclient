@@ -356,7 +356,7 @@ public class Game
 								//only draw the bounding box if its close to the player
 								if (System.Numerics.Vector3.Distance(new System.Numerics.Vector3(playerPos.X, playerPos.Y, playerPos.Z), new System.Numerics.Vector3(bbox.Min.X, bbox.Min.Y, bbox.Min.Z)) < 4)
 								{
-									Raylib.DrawCubeV(new System.Numerics.Vector3((float)(bbox.Min.X + bbox.Max.X) / 2, (float)(bbox.Min.Y + bbox.Max.Y) / 2, (float)(bbox.Min.Z + bbox.Max.Z) / 2), new System.Numerics.Vector3((float)(bbox.Max.X - bbox.Min.X) + .01f, (float)(bbox.Max.Y - bbox.Min.Y) + .01f, (float)(bbox.Max.Z - bbox.Min.Z) + .01f), new Color(255, 0, 0, 50));
+									Raylib.DrawCubeV(new System.Numerics.Vector3((float)(bbox.Min.X + bbox.Max.X) / 2, (float)(bbox.Min.Y + bbox.Max.Y) / 2, (float)(bbox.Min.Z + bbox.Max.Z) / 2), new System.Numerics.Vector3((float)(bbox.Max.X - bbox.Min.X) + .05f, (float)(bbox.Max.Y - bbox.Min.Y) + .05f, (float)(bbox.Max.Z - bbox.Min.Z) + .05f), new Color(255, 0, 0, 50));
 								}
 							}							
 						}
