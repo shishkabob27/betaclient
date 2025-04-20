@@ -1,3 +1,5 @@
+using Raylib_cs;
+
 public class CubeModeler : IBlockModeler
 {
 	public void RenderBlock(Chunk chunk, int x, int y, int z, byte metadata, byte blocklight, byte skylight, ref List<System.Numerics.Vector3> vertices, ref List<System.Numerics.Vector2> texcoords, ref List<System.Numerics.Vector3> normals, ref List<Raylib_cs.Color> colors, ref List<ushort> indices)
@@ -45,7 +47,7 @@ public class CubeModeler : IBlockModeler
 			//temp grass color
 			if (blockID == 2)
 			{
-				Raylib_cs.Color grassColor = new Raylib_cs.Color(158, 200, 109, 255);
+				Raylib_cs.Color grassColor = new Raylib_cs.Color(158, 215, 109, 255);
 				colors.Add(grassColor);
 				colors.Add(grassColor);
 				colors.Add(grassColor);
@@ -85,10 +87,10 @@ public class CubeModeler : IBlockModeler
 			normals.Add(-System.Numerics.Vector3.UnitY);
 			normals.Add(-System.Numerics.Vector3.UnitY);
 
-			colors.Add(Raylib_cs.Color.White);
-			colors.Add(Raylib_cs.Color.White);
-			colors.Add(Raylib_cs.Color.White);
-			colors.Add(Raylib_cs.Color.White);
+			for (int i = 0; i < 4; i++)
+			{
+				colors.Add(new Color(120, 120, 120, 255));
+			}
 
 			indices.Add((ushort)(vertices.Count - 4));
 			indices.Add((ushort)(vertices.Count - 2));
@@ -116,10 +118,10 @@ public class CubeModeler : IBlockModeler
 			normals.Add(-System.Numerics.Vector3.UnitZ);
 			normals.Add(-System.Numerics.Vector3.UnitZ);
 
-			colors.Add(Raylib_cs.Color.White);
-			colors.Add(Raylib_cs.Color.White);
-			colors.Add(Raylib_cs.Color.White);
-			colors.Add(Raylib_cs.Color.White);
+			for (int i = 0; i < 4; i++)
+			{
+				colors.Add(new Color(255, 255, 255, 255));
+			}
 
 			indices.Add((ushort)(vertices.Count - 4));
 			indices.Add((ushort)(vertices.Count - 3));
@@ -147,10 +149,10 @@ public class CubeModeler : IBlockModeler
 			normals.Add(System.Numerics.Vector3.UnitZ);
 			normals.Add(System.Numerics.Vector3.UnitZ);
 
-			colors.Add(Raylib_cs.Color.White);
-			colors.Add(Raylib_cs.Color.White);
-			colors.Add(Raylib_cs.Color.White);
-			colors.Add(Raylib_cs.Color.White);
+			for (int i = 0; i < 4; i++)
+			{
+				colors.Add(new Color(255, 255, 255, 255));
+			}
 
 			indices.Add((ushort)(vertices.Count - 4));
 			indices.Add((ushort)(vertices.Count - 2));
@@ -178,10 +180,10 @@ public class CubeModeler : IBlockModeler
 			normals.Add(-System.Numerics.Vector3.UnitX);
 			normals.Add(-System.Numerics.Vector3.UnitX);
 
-			colors.Add(Raylib_cs.Color.White);
-			colors.Add(Raylib_cs.Color.White);
-			colors.Add(Raylib_cs.Color.White);
-			colors.Add(Raylib_cs.Color.White);
+			for (int i = 0; i < 4; i++)
+			{
+				colors.Add(new Color(155, 155, 155, 255));
+			}
 
 			indices.Add((ushort)(vertices.Count - 2));
 			indices.Add((ushort)(vertices.Count - 3));
@@ -209,10 +211,10 @@ public class CubeModeler : IBlockModeler
 			normals.Add(System.Numerics.Vector3.UnitX);
 			normals.Add(System.Numerics.Vector3.UnitX);
 
-			colors.Add(Raylib_cs.Color.White);
-			colors.Add(Raylib_cs.Color.White);
-			colors.Add(Raylib_cs.Color.White);
-			colors.Add(Raylib_cs.Color.White);
+			for (int i = 0; i < 4; i++)
+			{
+				colors.Add(new Color(155, 155, 155, 255));
+			}
 
 			indices.Add((ushort)(vertices.Count - 4));
 			indices.Add((ushort)(vertices.Count - 3));
