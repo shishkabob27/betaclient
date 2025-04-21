@@ -17,7 +17,6 @@ public class ChestBlock : BlockDefinition
 
     public override Tuple<int, int> GetTextureMap(byte metadata, BlockFace face)
     {
-        Logger.Debug("ChestBlock Metadata: " + metadata);
         return new Tuple<int, int>(10, 1);
     }
 }
