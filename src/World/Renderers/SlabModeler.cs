@@ -25,7 +25,7 @@ public class SlabModeler : IBlockModeler
 		BlockDefinition blockLeft = BlockRegistry.GetBlock(blockIDLeft);
 		BlockDefinition blockRight = BlockRegistry.GetBlock(blockIDRight);
 		
-		if (!blockUp.Opaque && blockUp.ID != blockID) //top face (positive y)
+		if (true) //top face (positive y)
 		{
 			vertices.Add(new System.Numerics.Vector3(x, y + .5f, z));
 			vertices.Add(new System.Numerics.Vector3(x, y + .5f, z + 1));
