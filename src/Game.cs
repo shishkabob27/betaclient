@@ -330,47 +330,28 @@ public class Game
 				playerPos = new System.Numerics.Vector3((float)World.GetPlayer().Position.X, (float)World.GetPlayer().Position.Y, (float)World.GetPlayer().Position.Z);
 			}
 			Vector2 cameraChunkPos = GetCameraChunkPos();
-			foreach (var chunk in World.Chunks)
+			// Sort chunks by distance from the camera, furthest first
+			var sortedChunks = World.Chunks.OrderByDescending(chunk => 
+				System.Numerics.Vector3.DistanceSquared(
+					camera.Position, 
+					new System.Numerics.Vector3(
+						chunk.X * WorldConstants.ChunkWidth + WorldConstants.ChunkWidth / 2.0f, 
+						WorldConstants.Height / 2.0f, 
+						chunk.Z * WorldConstants.ChunkDepth + WorldConstants.ChunkDepth / 2.0f
+					)
+				)
+			);
+
+			foreach (var chunk in sortedChunks)
 			{
 				Vector3 pos = new Vector3(chunk.X * WorldConstants.ChunkWidth, 0, chunk.Z * WorldConstants.ChunkDepth);
-				//Color color = new Color(255, 0, 0, 50);
-				//if (chunk.HasRecivedData) color = new Color(0, 0, 255, 50);
+
 				if (showChunkBorders)
 				Raylib.DrawCubeWires(new System.Numerics.Vector3((float)pos.X + 8, (float)pos.Y + WorldConstants.Height/2, (float)pos.Z + 8), (float)WorldConstants.ChunkWidth, WorldConstants.Height, (float)WorldConstants.ChunkDepth, Color.White);
 		
 				if (chunk.HasRecivedData)
 				{
 					Raylib.DrawModel(chunk.model, new System.Numerics.Vector3((float)pos.X, (float)pos.Y, (float)pos.Z), 1.0f, Color.White);
-
-					/*
-					//only render bounding boxes arround chunks that the player is in
-					List<Vector2> surroundingplayerChunks = new List<Vector2>()
-					{
-						cameraChunkPos,
-						new Vector2(cameraChunkPos.X + 1, cameraChunkPos.Y),
-						new Vector2(cameraChunkPos.X - 1, cameraChunkPos.Y),
-						new Vector2(cameraChunkPos.X, cameraChunkPos.Y + 1),
-						new Vector2(cameraChunkPos.X, cameraChunkPos.Y - 1),
-						new Vector2(cameraChunkPos.X + 1, cameraChunkPos.Y + 1),
-						new Vector2(cameraChunkPos.X - 1, cameraChunkPos.Y - 1),
-						new Vector2(cameraChunkPos.X + 1, cameraChunkPos.Y - 1),
-						new Vector2(cameraChunkPos.X - 1, cameraChunkPos.Y + 1)
-					};
-					foreach (var surroundingChunk in surroundingplayerChunks)
-					{
-						if (surroundingChunk.X == chunk.X && surroundingChunk.Y == chunk.Z)
-						{
-							foreach (var bbox in chunk.BoundingBoxes)
-							{
-								//only draw the bounding box if its close to the player
-								if (System.Numerics.Vector3.Distance(new System.Numerics.Vector3(playerPos.X, playerPos.Y, playerPos.Z), new System.Numerics.Vector3(bbox.Min.X, bbox.Min.Y, bbox.Min.Z)) < 4)
-								{
-									Raylib.DrawCubeV(new System.Numerics.Vector3((float)(bbox.Min.X + bbox.Max.X) / 2, (float)(bbox.Min.Y + bbox.Max.Y) / 2, (float)(bbox.Min.Z + bbox.Max.Z) / 2), new System.Numerics.Vector3((float)(bbox.Max.X - bbox.Min.X) + .05f, (float)(bbox.Max.Y - bbox.Min.Y) + .05f, (float)(bbox.Max.Z - bbox.Min.Z) + .05f), new Color(255, 0, 0, 50));
-								}
-							}							
-						}
-					}
-					*/
 				}
 			}
 
