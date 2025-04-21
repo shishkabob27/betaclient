@@ -87,6 +87,12 @@ public class Chunk
 						modeler = new QuadModeler();
 					}
 					else if (
+						blockID == 44
+					)
+					{
+						modeler = new SlabModeler();
+					}
+					else if (
 						blockID == 50 ||
 						blockID == 75 ||
 						blockID == 76

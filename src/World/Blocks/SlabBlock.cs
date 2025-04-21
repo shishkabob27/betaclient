@@ -18,6 +18,8 @@ public class SlabBlock : BlockDefinition
 
     public override byte Luminance { get { return 0; } }
 
+    public override bool Opaque { get { return false; } }
+
     public override string GetDisplayName(short metadata)
     {
         return "Stone Slab";
@@ -25,7 +27,11 @@ public class SlabBlock : BlockDefinition
 
     public override Tuple<int, int> GetTextureMap(byte metadata, BlockFace face)
     {
-        return new Tuple<int, int>(6, 0);
+        if (face == BlockFace.PositiveY || face == BlockFace.NegativeY)
+        {
+            return new Tuple<int, int>(6, 0);
+        }
+        return new Tuple<int, int>(5, 0);
     }
 }
 
