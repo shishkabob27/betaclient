@@ -56,11 +56,18 @@ public class Chunk
 	{
 		if (!HasRecivedData) return;
 
-		List<System.Numerics.Vector3> vertices = new List<System.Numerics.Vector3>();
-		List<System.Numerics.Vector2> texcoords = new List<System.Numerics.Vector2>();
-		List<System.Numerics.Vector3> normals = new List<System.Numerics.Vector3>();
-		List<Color> colors = new List<Color>();
-		List<ushort> indices = new List<ushort>();
+		// Create separate lists for opaque and non-opaque blocks
+		List<System.Numerics.Vector3> verticesOpaque = new List<System.Numerics.Vector3>();
+		List<System.Numerics.Vector2> texcoordsOpaque = new List<System.Numerics.Vector2>();
+		List<System.Numerics.Vector3> normalsOpaque = new List<System.Numerics.Vector3>();
+		List<Color> colorsOpaque = new List<Color>();
+		List<ushort> indicesOpaque = new List<ushort>();
+
+		List<System.Numerics.Vector3> verticesTransparent = new List<System.Numerics.Vector3>();
+		List<System.Numerics.Vector2> texcoordsTransparent = new List<System.Numerics.Vector2>();
+		List<System.Numerics.Vector3> normalsTransparent = new List<System.Numerics.Vector3>();
+		List<Color> colorsTransparent = new List<Color>();
+		List<ushort> indicesTransparent = new List<ushort>();
 
 		for (int x = 0; x < WorldConstants.ChunkWidth; x++)
 		{
@@ -69,9 +76,36 @@ public class Chunk
 				for (int z = 0; z < WorldConstants.ChunkDepth; z++)
 				{
 					if (GetBlockID(x, y, z) == 0) continue;
-					IBlockModeler modeler;
+					
 					byte blockID = GetBlockID(x, y, z);
-
+					BlockDefinition blockDef = BlockRegistry.GetBlock(blockID);
+					
+					// Select appropriate mesh based on opacity
+					List<System.Numerics.Vector3> vertices;
+					List<System.Numerics.Vector2> texcoords;
+					List<System.Numerics.Vector3> normals;
+					List<Color> colors;
+					List<ushort> indices;
+					
+					if (blockDef.Opaque)
+					{
+						vertices = verticesOpaque;
+						texcoords = texcoordsOpaque;
+						normals = normalsOpaque;
+						colors = colorsOpaque;
+						indices = indicesOpaque;
+					}
+					else
+					{
+						vertices = verticesTransparent;
+						texcoords = texcoordsTransparent;
+						normals = normalsTransparent;
+						colors = colorsTransparent;
+						indices = indicesTransparent;
+					}
+					
+					IBlockModeler modeler;
+					
 					if (
 						blockID == 6 ||
 						blockID == 10 ||
@@ -110,33 +144,135 @@ public class Chunk
 			}
 		}
 
-		int vertexCount = vertices.Count;
-		Mesh mesh = new Mesh(vertexCount, indices.Count / 2);
-		mesh.AllocVertices();
-		mesh.AllocTexCoords();
-		mesh.AllocNormals();
-		mesh.AllocColors();
-		mesh.AllocIndices();
+		// Create the model with multiple meshes
+		int vertexCountOpaque = verticesOpaque.Count;
+		int vertexCountTransparent = verticesTransparent.Count;
 
+		// Create first mesh for opaque blocks
+		Mesh meshOpaque = default;
+		if (vertexCountOpaque > 0)
+		{
+			meshOpaque = new Mesh(vertexCountOpaque, indicesOpaque.Count / 2);
+			meshOpaque.AllocVertices();
+			meshOpaque.AllocTexCoords();
+			meshOpaque.AllocNormals();
+			meshOpaque.AllocColors();
+			meshOpaque.AllocIndices();
+
+			FillMeshData(meshOpaque, verticesOpaque, texcoordsOpaque, normalsOpaque, colorsOpaque, indicesOpaque);
+			Raylib.UploadMesh(ref meshOpaque, true);
+		}
+
+		// Create second mesh for transparent blocks
+		Mesh meshTransparent = default;
+		if (vertexCountTransparent > 0)
+		{
+			meshTransparent = new Mesh(vertexCountTransparent, indicesTransparent.Count / 2);
+			meshTransparent.AllocVertices();
+			meshTransparent.AllocTexCoords();
+			meshTransparent.AllocNormals();
+			meshTransparent.AllocColors();
+			meshTransparent.AllocIndices();
+
+			FillMeshData(meshTransparent, verticesTransparent, texcoordsTransparent, normalsTransparent, colorsTransparent, indicesTransparent);
+			Raylib.UploadMesh(ref meshTransparent, true);
+		}
+
+		// Create model with two meshes if both exist
+		int meshCount = (vertexCountOpaque > 0 ? 1 : 0) + (vertexCountTransparent > 0 ? 1 : 0);
+		if (meshCount == 0) return; // No meshes to create
+
+		// Load the model with the first mesh
+		if (vertexCountOpaque > 0)
+		{
+			model = Raylib.LoadModelFromMesh(meshOpaque);
+		}
+		else
+		{
+			model = Raylib.LoadModelFromMesh(meshTransparent);
+		}
+
+		// Adjust the model to support two meshes if needed
+		if (meshCount == 2)
+		{
+			// Create a new model with two meshes
+			model.MeshCount = 2;
+			
+			// You'll need to manage memory manually for this part
+			// This is simplified and might need adjustment based on Raylib_cs implementation
+			unsafe
+			{
+				Mesh* meshes = (Mesh*)Raylib.MemAlloc((uint)(sizeof(Mesh) * 2));
+				meshes[0] = meshOpaque;
+				meshes[1] = meshTransparent;
+				
+				if (model.Meshes != null)
+				{
+					Raylib.MemFree(model.Meshes);
+				}
+				
+				model.Meshes = meshes;
+				
+				// Adjust materials array
+				Material* materials = (Material*)Raylib.MemAlloc((uint)(sizeof(Material) * 2));
+				
+				// Setup materials
+				Material materialOpaque = Raylib.LoadMaterialDefault();
+				materialOpaque.Maps[(int)MaterialMapIndex.Albedo].Texture = BetaClient.Instance.terrainAtlas;
+				materialOpaque.Maps[(int)MaterialMapIndex.Diffuse].Texture = BetaClient.Instance.terrainAtlas;
+				
+				Material materialTransparent = Raylib.LoadMaterialDefault();
+				materialTransparent.Maps[(int)MaterialMapIndex.Albedo].Texture = BetaClient.Instance.terrainAtlas;
+				materialTransparent.Maps[(int)MaterialMapIndex.Diffuse].Texture = BetaClient.Instance.terrainAtlas;
+				
+				materials[0] = materialOpaque;
+				materials[1] = materialTransparent;
+				
+				if (model.Materials != null)
+				{
+					Raylib.MemFree(model.Materials);
+				}
+				
+				model.Materials = materials;
+				model.MaterialCount = 2;
+				
+				// Setup mesh material mapping
+				int* meshMaterial = (int*)Raylib.MemAlloc((uint)(sizeof(int) * 2));
+				meshMaterial[0] = 0; // First mesh uses first material
+				meshMaterial[1] = 1; // Second mesh uses second material
+				
+				if (model.MeshMaterial != null)
+				{
+					Raylib.MemFree(model.MeshMaterial);
+				}
+				
+				model.MeshMaterial = meshMaterial;
+			}
+		}
+		else
+		{
+			// Just one mesh, setup the material as before
+			Material material = Raylib.LoadMaterialDefault();
+			material.Maps[(int)MaterialMapIndex.Albedo].Texture = BetaClient.Instance.terrainAtlas;
+			material.Maps[(int)MaterialMapIndex.Diffuse].Texture = BetaClient.Instance.terrainAtlas;
+			model.Materials[0] = material;
+			model.MaterialCount = 1;
+			Raylib.SetModelMeshMaterial(ref model, 0, 0);
+		}
+	}
+
+	// Helper method to fill mesh data from lists
+	private unsafe void FillMeshData(Mesh mesh, List<System.Numerics.Vector3> vertices, 
+									List<System.Numerics.Vector2> texcoords, 
+									List<System.Numerics.Vector3> normals, 
+									List<Color> colors, 
+									List<ushort> indices)
+	{
 		Span<System.Numerics.Vector3> verticesMeshSpan = mesh.VerticesAs<System.Numerics.Vector3>();
 		Span<System.Numerics.Vector2> texcoordsSpan = mesh.TexCoordsAs<System.Numerics.Vector2>();
 		Span<System.Numerics.Vector3> normalsSpan = mesh.NormalsAs<System.Numerics.Vector3>();
 		Span<Color> colorsSpan = mesh.ColorsAs<Color>();
 		Span<ushort> indicesSpan = mesh.IndicesAs<ushort>();
-
-		/*
-		Logger.Info($"verticesMeshSpan.Length: {verticesMeshSpan.Length}");
-		Logger.Info($"texcoordsSpan.Length: {texcoordsSpan.Length}");
-		Logger.Info($"normalsSpan.Length: {normalsSpan.Length}");
-		Logger.Info($"colorsSpan.Length: {colorsSpan.Length}");
-		Logger.Info($"indicesSpan.Length: {indicesSpan.Length}");
-		Logger.Info($"");
-		Logger.Info($"vertices.Count: {vertices.Count}");
-		Logger.Info($"texcoords.Count: {texcoords.Count}");
-		Logger.Info($"normals.Count: {normals.Count}");
-		Logger.Info($"colors.Count: {colors.Count}");
-		Logger.Info($"indices.Count: {indices.Count}");
-		*/
 
 		//add all vertices to the mesh
 		for (int i = 0; i < vertices.Count; i++)
@@ -167,17 +303,6 @@ public class Chunk
 		{
 			indicesSpan[i] = indices[i];
 		}
-
-		Raylib.UploadMesh(ref mesh, true);
-		model = Raylib.LoadModelFromMesh(mesh);
-
-		Material material = Raylib.LoadMaterialDefault();
-		material.Maps[(int)MaterialMapIndex.Albedo].Texture = BetaClient.Instance.terrainAtlas;
-		material.Maps[(int)MaterialMapIndex.Diffuse].Texture = BetaClient.Instance.terrainAtlas;
-		model.Materials[0] = material;
-		model.MaterialCount = 1;
-
-		Raylib.SetModelMeshMaterial(ref model, 0, 0);
 	}
 
 	public void RegenerateBoundingBoxes()
