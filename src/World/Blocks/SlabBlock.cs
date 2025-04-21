@@ -1,3 +1,5 @@
+using Raylib_cs;
+
 public class SlabBlock : BlockDefinition
 {
     public enum SlabMaterial
@@ -19,6 +21,9 @@ public class SlabBlock : BlockDefinition
     public override byte Luminance { get { return 0; } }
 
     public override bool Opaque { get { return false; } }
+
+    public override BoundingBox BoundingBox { get { return new BoundingBox(new System.Numerics.Vector3(0, 0, 0), new System.Numerics.Vector3(1, 0.5f, 1)); } }
+    public override BoundingBox InteractiveBoundingBox { get { return new BoundingBox(new System.Numerics.Vector3(0, 0, 0), new System.Numerics.Vector3(1, 0.5f, 1)); } }
 
     public override string GetDisplayName(short metadata)
     {
