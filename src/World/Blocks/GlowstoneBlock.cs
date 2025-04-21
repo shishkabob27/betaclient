@@ -7,8 +7,6 @@ public class GlowstoneBlock : BlockDefinition
     public override double Hardness { get { return 0.3; } }
 
     public override byte Luminance { get { return 15; } }
-
-    public override bool Opaque { get { return false; } }
     
     public override string GetDisplayName(short metadata)
     {
