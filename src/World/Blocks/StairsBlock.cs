@@ -12,6 +12,11 @@ public class WoodenStairsBlock : BlockDefinition
     {
         return "Wooden Stairs";
     }
+
+    public override Tuple<int, int> GetTextureMap(byte metadata, BlockFace face)
+    {
+        return new Tuple<int, int>(4, 0);
+    }
 }
 
 public class StoneStairsBlock : BlockDefinition
@@ -27,5 +32,10 @@ public class StoneStairsBlock : BlockDefinition
     public override string GetDisplayName(short metadata)
     {
         return "Stone Stairs";
+    }
+
+    public override Tuple<int, int> GetTextureMap(byte metadata, BlockFace face)
+    {
+        return new Tuple<int, int>(0, 1);
     }
 }
