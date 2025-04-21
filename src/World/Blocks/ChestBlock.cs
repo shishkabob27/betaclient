@@ -17,6 +17,8 @@ public class ChestBlock : BlockDefinition
 
     public override Tuple<int, int> GetTextureMap(byte metadata, BlockFace face)
     {
+        if (face == BlockFace.PositiveY || face == BlockFace.NegativeY)
+            return new Tuple<int, int>(9, 1);
         return new Tuple<int, int>(10, 1);
     }
 }
