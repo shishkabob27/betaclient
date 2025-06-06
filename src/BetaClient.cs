@@ -29,7 +29,7 @@ public class BetaClient
 		clientNetwork.SendPacket(new HandshakeRequestPacket(Username));
 
 		//disable raylib log
-		Raylib.SetTraceLogLevel(TraceLogLevel.Error);
+		Raylib.SetTraceLogLevel(TraceLogLevel.Warning);
 		Raylib.SetConfigFlags(ConfigFlags.ResizableWindow | ConfigFlags.AlwaysRunWindow);
 		Raylib.InitWindow(1280, 720, "reMine");
 
