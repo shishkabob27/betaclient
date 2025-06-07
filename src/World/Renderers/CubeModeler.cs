@@ -1,14 +1,13 @@
-using Raylib_cs;
-
 public class CubeModeler : IBlockModeler
 {
-	public void RenderBlock(Chunk chunk, int x, int y, int z, byte metadata, byte blocklight, byte skylight, ref List<System.Numerics.Vector3> vertices, ref List<System.Numerics.Vector2> texcoords, ref List<System.Numerics.Vector3> normals, ref List<Raylib_cs.Color> colors, ref List<ushort> indices)
+	public void RenderBlock(Chunk chunk, int x, int y, int z, byte metadata, byte blocklight, byte skylight, ref List<Chunk.Vertex> vertices, ref List<uint> indices)
 	{
 		byte blockID = chunk.GetBlockID(x, y, z);
 		BlockDefinition block = BlockRegistry.GetBlock(blockID);
 
-		int textureAtlasSize = BetaClient.Instance.terrainAtlas.Width;
-		int textureAtlasBlockSize = 16; //16x16
+		// Texture atlas handling
+		int textureAtlasSize = 256;
+		int textureAtlasBlockSize = 16;
 
 		//neighboring blocks
 		byte blockIDUp = chunk.GetBlockID(x, y + 1, z);
@@ -24,204 +23,167 @@ public class CubeModeler : IBlockModeler
 		BlockDefinition blockBack = BlockRegistry.GetBlock(blockIDBack);
 		BlockDefinition blockLeft = BlockRegistry.GetBlock(blockIDLeft);
 		BlockDefinition blockRight = BlockRegistry.GetBlock(blockIDRight);
+
+		uint baseIndex = (uint)vertices.Count;
+		
+		// Convert local chunk coordinates to world coordinates
+		float worldX = x + chunk.X * WorldConstants.ChunkWidth;
+		float worldZ = z + chunk.Z * WorldConstants.ChunkDepth;
 		
 		if (!blockUp.Opaque && blockUp.ID != blockID) //top face (positive y)
 		{
-			vertices.Add(new System.Numerics.Vector3(x, y + 1, z));
-			vertices.Add(new System.Numerics.Vector3(x, y + 1, z + 1));
-			vertices.Add(new System.Numerics.Vector3(x + 1, y + 1, z));
-			vertices.Add(new System.Numerics.Vector3(x + 1, y + 1, z + 1));
+			// Get texture coordinates for top face
+			Tuple<int, int> atlasCoords = GetTextureMap(blockID, BlockFace.PositiveY, metadata);
+			float u1 = (float)atlasCoords.Item1 / textureAtlasSize;
+			float v1 = (float)atlasCoords.Item2 / textureAtlasSize;
+			float u2 = (float)(atlasCoords.Item1 + textureAtlasBlockSize) / textureAtlasSize;
+			float v2 = (float)(atlasCoords.Item2 + textureAtlasBlockSize) / textureAtlasSize;
+			
+			// Top face vertices
+			var color = blockID == 2 ? new Color(158, 215, 109, 255).ToVector4() : Color.White.ToVector4();
+			
+			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(worldX, y + 1, worldZ), new System.Numerics.Vector2(u1, v2), System.Numerics.Vector3.UnitY, color));
+			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(worldX, y + 1, worldZ + 1), new System.Numerics.Vector2(u1, v1), System.Numerics.Vector3.UnitY, color));
+			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(worldX + 1, y + 1, worldZ), new System.Numerics.Vector2(u2, v2), System.Numerics.Vector3.UnitY, color));
+			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(worldX + 1, y + 1, worldZ + 1), new System.Numerics.Vector2(u2, v1), System.Numerics.Vector3.UnitY, color));
 
-
-			Tuple<int, int> atlasCoordinates = GetTextureMap(blockID, BlockFace.PositiveY, metadata);
-			texcoords.Add(new System.Numerics.Vector2((float)atlasCoordinates.Item1 / textureAtlasSize, (float)atlasCoordinates.Item2 / textureAtlasSize));
-			texcoords.Add(new System.Numerics.Vector2((float)atlasCoordinates.Item1 / textureAtlasSize, (float)(atlasCoordinates.Item2 + textureAtlasBlockSize) / textureAtlasSize));
-			texcoords.Add(new System.Numerics.Vector2((float)(atlasCoordinates.Item1 + textureAtlasBlockSize) / textureAtlasSize, (float)atlasCoordinates.Item2 / textureAtlasSize));
-			texcoords.Add(new System.Numerics.Vector2((float)(atlasCoordinates.Item1 + textureAtlasBlockSize) / textureAtlasSize, (float)(atlasCoordinates.Item2 + textureAtlasBlockSize) / textureAtlasSize));
-
-			normals.Add(System.Numerics.Vector3.UnitY);
-			normals.Add(System.Numerics.Vector3.UnitY);
-			normals.Add(System.Numerics.Vector3.UnitY);
-			normals.Add(System.Numerics.Vector3.UnitY);
-
-			//temp grass color
-			if (blockID == 2)
-			{
-				Raylib_cs.Color grassColor = new Raylib_cs.Color(158, 215, 109, 255);
-				colors.Add(grassColor);
-				colors.Add(grassColor);
-				colors.Add(grassColor);
-				colors.Add(grassColor);
-			}
-			else
-			{
-				colors.Add(Raylib_cs.Color.White);
-				colors.Add(Raylib_cs.Color.White);
-				colors.Add(Raylib_cs.Color.White);
-				colors.Add(Raylib_cs.Color.White);
-			}
-
-			indices.Add((ushort)(vertices.Count - 4));
-			indices.Add((ushort)(vertices.Count - 3));
-			indices.Add((ushort)(vertices.Count - 2));
-			indices.Add((ushort)(vertices.Count - 3));
-			indices.Add((ushort)(vertices.Count - 1));
-			indices.Add((ushort)(vertices.Count - 2));
+			// Top face indices
+			indices.Add(baseIndex + 0);
+			indices.Add(baseIndex + 1);
+			indices.Add(baseIndex + 2);
+			indices.Add(baseIndex + 1);
+			indices.Add(baseIndex + 3);
+			indices.Add(baseIndex + 2);
+			
+			baseIndex += 4;
 		}
 		
 		if (!blockDown.Opaque && blockDown.ID != blockID) //bottom face (negative y)
 		{
-			vertices.Add(new System.Numerics.Vector3(x, y, z));
-			vertices.Add(new System.Numerics.Vector3(x, y, z + 1));
-			vertices.Add(new System.Numerics.Vector3(x + 1, y, z));
-			vertices.Add(new System.Numerics.Vector3(x + 1, y, z + 1));
+			// Get texture coordinates for bottom face
+			Tuple<int, int> atlasCoords = GetTextureMap(blockID, BlockFace.NegativeY, metadata);
+			float u1 = (float)atlasCoords.Item1 / textureAtlasSize;
+			float v1 = (float)atlasCoords.Item2 / textureAtlasSize;
+			float u2 = (float)(atlasCoords.Item1 + textureAtlasBlockSize) / textureAtlasSize;
+			float v2 = (float)(atlasCoords.Item2 + textureAtlasBlockSize) / textureAtlasSize;
+			
+			var color = new Color(120, 120, 120, 255).ToVector4();
+			
+			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(worldX, y, worldZ), new System.Numerics.Vector2(u1, v2), -System.Numerics.Vector3.UnitY, color));
+			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(worldX, y, worldZ + 1), new System.Numerics.Vector2(u1, v1), -System.Numerics.Vector3.UnitY, color));
+			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(worldX + 1, y, worldZ), new System.Numerics.Vector2(u2, v2), -System.Numerics.Vector3.UnitY, color));
+			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(worldX + 1, y, worldZ + 1), new System.Numerics.Vector2(u2, v1), -System.Numerics.Vector3.UnitY, color));
 
-			Tuple<int, int> atlasCoordinates = GetTextureMap(blockID, BlockFace.NegativeY, metadata);
-			texcoords.Add(new System.Numerics.Vector2((float)atlasCoordinates.Item1 / textureAtlasSize, (float)atlasCoordinates.Item2 / textureAtlasSize));
-			texcoords.Add(new System.Numerics.Vector2((float)atlasCoordinates.Item1 / textureAtlasSize, (float)(atlasCoordinates.Item2 + textureAtlasBlockSize) / textureAtlasSize));
-			texcoords.Add(new System.Numerics.Vector2((float)(atlasCoordinates.Item1 + textureAtlasBlockSize) / textureAtlasSize, (float)atlasCoordinates.Item2 / textureAtlasSize));
-			texcoords.Add(new System.Numerics.Vector2((float)(atlasCoordinates.Item1 + textureAtlasBlockSize) / textureAtlasSize, (float)(atlasCoordinates.Item2 + textureAtlasBlockSize) / textureAtlasSize));
-
-			normals.Add(-System.Numerics.Vector3.UnitY);
-			normals.Add(-System.Numerics.Vector3.UnitY);
-			normals.Add(-System.Numerics.Vector3.UnitY);
-			normals.Add(-System.Numerics.Vector3.UnitY);
-
-			for (int i = 0; i < 4; i++)
-			{
-				colors.Add(new Color(120, 120, 120, 255));
-			}
-
-			indices.Add((ushort)(vertices.Count - 4));
-			indices.Add((ushort)(vertices.Count - 2));
-			indices.Add((ushort)(vertices.Count - 3));
-			indices.Add((ushort)(vertices.Count - 3));
-			indices.Add((ushort)(vertices.Count - 2));
-			indices.Add((ushort)(vertices.Count - 1));
+			indices.Add(baseIndex + 0);
+			indices.Add(baseIndex + 2);
+			indices.Add(baseIndex + 1);
+			indices.Add(baseIndex + 1);
+			indices.Add(baseIndex + 2);
+			indices.Add(baseIndex + 3);
+			
+			baseIndex += 4;
 		}
 
 		if (!blockFront.Opaque && blockFront.ID != blockID) // Front face (negative z)
 		{
-			vertices.Add(new System.Numerics.Vector3(x, y, z));
-			vertices.Add(new System.Numerics.Vector3(x, y + 1, z));
-			vertices.Add(new System.Numerics.Vector3(x + 1, y, z));
-			vertices.Add(new System.Numerics.Vector3(x + 1, y + 1, z));
+			// Get texture coordinates for front face
+			Tuple<int, int> atlasCoords = GetTextureMap(blockID, BlockFace.NegativeZ, metadata);
+			float u1 = (float)atlasCoords.Item1 / textureAtlasSize;
+			float v1 = (float)atlasCoords.Item2 / textureAtlasSize;
+			float u2 = (float)(atlasCoords.Item1 + textureAtlasBlockSize) / textureAtlasSize;
+			float v2 = (float)(atlasCoords.Item2 + textureAtlasBlockSize) / textureAtlasSize;
+			
+			var color = Color.White.ToVector4();
+			
+			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(worldX, y, worldZ), new System.Numerics.Vector2(u2, v2), -System.Numerics.Vector3.UnitZ, color));
+			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(worldX, y + 1, worldZ), new System.Numerics.Vector2(u2, v1), -System.Numerics.Vector3.UnitZ, color));
+			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(worldX + 1, y, worldZ), new System.Numerics.Vector2(u1, v2), -System.Numerics.Vector3.UnitZ, color));
+			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(worldX + 1, y + 1, worldZ), new System.Numerics.Vector2(u1, v1), -System.Numerics.Vector3.UnitZ, color));
 
-			Tuple<int, int> atlasCoordinates = GetTextureMap(blockID, BlockFace.NegativeZ, metadata);
-			texcoords.Add(new System.Numerics.Vector2((float)(atlasCoordinates.Item1 + textureAtlasBlockSize) / textureAtlasSize, (float)(atlasCoordinates.Item2 + textureAtlasBlockSize) / textureAtlasSize));
-			texcoords.Add(new System.Numerics.Vector2((float)(atlasCoordinates.Item1 + textureAtlasBlockSize) / textureAtlasSize, (float)atlasCoordinates.Item2 / textureAtlasSize));
-			texcoords.Add(new System.Numerics.Vector2((float)atlasCoordinates.Item1 / textureAtlasSize, (float)(atlasCoordinates.Item2 + textureAtlasBlockSize) / textureAtlasSize));
-			texcoords.Add(new System.Numerics.Vector2((float)atlasCoordinates.Item1 / textureAtlasSize, (float)atlasCoordinates.Item2 / textureAtlasSize));
-
-			normals.Add(-System.Numerics.Vector3.UnitZ);
-			normals.Add(-System.Numerics.Vector3.UnitZ);
-			normals.Add(-System.Numerics.Vector3.UnitZ);
-			normals.Add(-System.Numerics.Vector3.UnitZ);
-
-			for (int i = 0; i < 4; i++)
-			{
-				colors.Add(new Color(255, 255, 255, 255));
-			}
-
-			indices.Add((ushort)(vertices.Count - 4));
-			indices.Add((ushort)(vertices.Count - 3));
-			indices.Add((ushort)(vertices.Count - 2));
-			indices.Add((ushort)(vertices.Count - 3));
-			indices.Add((ushort)(vertices.Count - 1));
-			indices.Add((ushort)(vertices.Count - 2));
+			indices.Add(baseIndex + 0);
+			indices.Add(baseIndex + 1);
+			indices.Add(baseIndex + 2);
+			indices.Add(baseIndex + 1);
+			indices.Add(baseIndex + 3);
+			indices.Add(baseIndex + 2);
+			
+			baseIndex += 4;
 		}
 
 		if (!blockBack.Opaque && blockBack.ID != blockID) // Back face (Positive Z)
 		{
-			vertices.Add(new System.Numerics.Vector3(x, y, z + 1));
-			vertices.Add(new System.Numerics.Vector3(x, y + 1, z + 1));
-			vertices.Add(new System.Numerics.Vector3(x + 1, y, z + 1));
-			vertices.Add(new System.Numerics.Vector3(x + 1, y + 1, z + 1));
+			// Get texture coordinates for back face
+			Tuple<int, int> atlasCoords = GetTextureMap(blockID, BlockFace.PositiveZ, metadata);
+			float u1 = (float)atlasCoords.Item1 / textureAtlasSize;
+			float v1 = (float)atlasCoords.Item2 / textureAtlasSize;
+			float u2 = (float)(atlasCoords.Item1 + textureAtlasBlockSize) / textureAtlasSize;
+			float v2 = (float)(atlasCoords.Item2 + textureAtlasBlockSize) / textureAtlasSize;
+			
+			var color = Color.White.ToVector4();
+			
+			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(worldX, y, worldZ + 1), new System.Numerics.Vector2(u1, v2), System.Numerics.Vector3.UnitZ, color));
+			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(worldX, y + 1, worldZ + 1), new System.Numerics.Vector2(u1, v1), System.Numerics.Vector3.UnitZ, color));
+			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(worldX + 1, y, worldZ + 1), new System.Numerics.Vector2(u2, v2), System.Numerics.Vector3.UnitZ, color));
+			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(worldX + 1, y + 1, worldZ + 1), new System.Numerics.Vector2(u2, v1), System.Numerics.Vector3.UnitZ, color));
 
-			Tuple<int, int> atlasCoordinates = GetTextureMap(blockID, BlockFace.PositiveZ, metadata);
-			texcoords.Add(new System.Numerics.Vector2((float)(atlasCoordinates.Item1 + textureAtlasBlockSize) / textureAtlasSize, (float)(atlasCoordinates.Item2 + textureAtlasBlockSize) / textureAtlasSize));
-			texcoords.Add(new System.Numerics.Vector2((float)(atlasCoordinates.Item1 + textureAtlasBlockSize) / textureAtlasSize, (float)atlasCoordinates.Item2 / textureAtlasSize));
-			texcoords.Add(new System.Numerics.Vector2((float)atlasCoordinates.Item1 / textureAtlasSize, (float)(atlasCoordinates.Item2 + textureAtlasBlockSize) / textureAtlasSize));
-			texcoords.Add(new System.Numerics.Vector2((float)atlasCoordinates.Item1 / textureAtlasSize, (float)atlasCoordinates.Item2 / textureAtlasSize));
-
-			normals.Add(System.Numerics.Vector3.UnitZ);
-			normals.Add(System.Numerics.Vector3.UnitZ);
-			normals.Add(System.Numerics.Vector3.UnitZ);
-			normals.Add(System.Numerics.Vector3.UnitZ);
-
-			for (int i = 0; i < 4; i++)
-			{
-				colors.Add(new Color(255, 255, 255, 255));
-			}
-
-			indices.Add((ushort)(vertices.Count - 4));
-			indices.Add((ushort)(vertices.Count - 2));
-			indices.Add((ushort)(vertices.Count - 3));
-			indices.Add((ushort)(vertices.Count - 3));
-			indices.Add((ushort)(vertices.Count - 2));
-			indices.Add((ushort)(vertices.Count - 1));
+			indices.Add(baseIndex + 0);
+			indices.Add(baseIndex + 2);
+			indices.Add(baseIndex + 1);
+			indices.Add(baseIndex + 1);
+			indices.Add(baseIndex + 2);
+			indices.Add(baseIndex + 3);
+			
+			baseIndex += 4;
 		}
 
 		if (!blockLeft.Opaque && blockLeft.ID != blockID) // Left face (Negative X)
 		{
-			vertices.Add(new System.Numerics.Vector3(x, y, z));
-			vertices.Add(new System.Numerics.Vector3(x, y + 1, z));
-			vertices.Add(new System.Numerics.Vector3(x, y, z + 1));
-			vertices.Add(new System.Numerics.Vector3(x, y + 1, z + 1));
+			// Get texture coordinates for left face
+			Tuple<int, int> atlasCoords = GetTextureMap(blockID, BlockFace.NegativeX, metadata);
+			float u1 = (float)atlasCoords.Item1 / textureAtlasSize;
+			float v1 = (float)atlasCoords.Item2 / textureAtlasSize;
+			float u2 = (float)(atlasCoords.Item1 + textureAtlasBlockSize) / textureAtlasSize;
+			float v2 = (float)(atlasCoords.Item2 + textureAtlasBlockSize) / textureAtlasSize;
+			
+			var color = new Color(155, 155, 155, 255).ToVector4();
+			
+			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(worldX, y, worldZ), new System.Numerics.Vector2(u2, v2), -System.Numerics.Vector3.UnitX, color));
+			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(worldX, y + 1, worldZ), new System.Numerics.Vector2(u2, v1), -System.Numerics.Vector3.UnitX, color));
+			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(worldX, y, worldZ + 1), new System.Numerics.Vector2(u1, v2), -System.Numerics.Vector3.UnitX, color));
+			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(worldX, y + 1, worldZ + 1), new System.Numerics.Vector2(u1, v1), -System.Numerics.Vector3.UnitX, color));
 
-			Tuple<int, int> atlasCoordinates = GetTextureMap(blockID, BlockFace.NegativeX, metadata);
-			texcoords.Add(new System.Numerics.Vector2((float)(atlasCoordinates.Item1 + textureAtlasBlockSize) / textureAtlasSize, (float)(atlasCoordinates.Item2 + textureAtlasBlockSize) / textureAtlasSize));
-			texcoords.Add(new System.Numerics.Vector2((float)(atlasCoordinates.Item1 + textureAtlasBlockSize) / textureAtlasSize, (float)atlasCoordinates.Item2 / textureAtlasSize));
-			texcoords.Add(new System.Numerics.Vector2((float)atlasCoordinates.Item1 / textureAtlasSize, (float)(atlasCoordinates.Item2 + textureAtlasBlockSize) / textureAtlasSize));
-			texcoords.Add(new System.Numerics.Vector2((float)atlasCoordinates.Item1 / textureAtlasSize, (float)atlasCoordinates.Item2 / textureAtlasSize));
-
-			normals.Add(-System.Numerics.Vector3.UnitX);
-			normals.Add(-System.Numerics.Vector3.UnitX);
-			normals.Add(-System.Numerics.Vector3.UnitX);
-			normals.Add(-System.Numerics.Vector3.UnitX);
-
-			for (int i = 0; i < 4; i++)
-			{
-				colors.Add(new Color(155, 155, 155, 255));
-			}
-
-			indices.Add((ushort)(vertices.Count - 2));
-			indices.Add((ushort)(vertices.Count - 3));
-			indices.Add((ushort)(vertices.Count - 4));
-			indices.Add((ushort)(vertices.Count - 2));
-			indices.Add((ushort)(vertices.Count - 1));
-			indices.Add((ushort)(vertices.Count - 3));
+			indices.Add(baseIndex + 2);
+			indices.Add(baseIndex + 1);
+			indices.Add(baseIndex + 0);
+			indices.Add(baseIndex + 2);
+			indices.Add(baseIndex + 3);
+			indices.Add(baseIndex + 1);
+			
+			baseIndex += 4;
 		}
 
 		if (!blockRight.Opaque && blockRight.ID != blockID) // Right face (Positive X)
 		{
-			vertices.Add(new System.Numerics.Vector3(x + 1, y, z));
-			vertices.Add(new System.Numerics.Vector3(x + 1, y + 1, z));
-			vertices.Add(new System.Numerics.Vector3(x + 1, y, z + 1));
-			vertices.Add(new System.Numerics.Vector3(x + 1, y + 1, z + 1));
+			// Get texture coordinates for right face
+			Tuple<int, int> atlasCoords = GetTextureMap(blockID, BlockFace.PositiveX, metadata);
+			float u1 = (float)atlasCoords.Item1 / textureAtlasSize;
+			float v1 = (float)atlasCoords.Item2 / textureAtlasSize;
+			float u2 = (float)(atlasCoords.Item1 + textureAtlasBlockSize) / textureAtlasSize;
+			float v2 = (float)(atlasCoords.Item2 + textureAtlasBlockSize) / textureAtlasSize;
+			
+			var color = new Color(155, 155, 155, 255).ToVector4();
+			
+			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(worldX + 1, y, worldZ), new System.Numerics.Vector2(u1, v2), System.Numerics.Vector3.UnitX, color));
+			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(worldX + 1, y + 1, worldZ), new System.Numerics.Vector2(u1, v1), System.Numerics.Vector3.UnitX, color));
+			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(worldX + 1, y, worldZ + 1), new System.Numerics.Vector2(u2, v2), System.Numerics.Vector3.UnitX, color));
+			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(worldX + 1, y + 1, worldZ + 1), new System.Numerics.Vector2(u2, v1), System.Numerics.Vector3.UnitX, color));
 
-			Tuple<int, int> atlasCoordinates = GetTextureMap(blockID, BlockFace.PositiveX, metadata);
-			texcoords.Add(new System.Numerics.Vector2((float)(atlasCoordinates.Item1 + textureAtlasBlockSize) / textureAtlasSize, (float)(atlasCoordinates.Item2 + textureAtlasBlockSize) / textureAtlasSize));
-			texcoords.Add(new System.Numerics.Vector2((float)(atlasCoordinates.Item1 + textureAtlasBlockSize) / textureAtlasSize, (float)atlasCoordinates.Item2 / textureAtlasSize));
-			texcoords.Add(new System.Numerics.Vector2((float)atlasCoordinates.Item1 / textureAtlasSize, (float)(atlasCoordinates.Item2 + textureAtlasBlockSize) / textureAtlasSize));
-			texcoords.Add(new System.Numerics.Vector2((float)atlasCoordinates.Item1 / textureAtlasSize, (float)atlasCoordinates.Item2 / textureAtlasSize));
-
-			normals.Add(System.Numerics.Vector3.UnitX);
-			normals.Add(System.Numerics.Vector3.UnitX);
-			normals.Add(System.Numerics.Vector3.UnitX);
-			normals.Add(System.Numerics.Vector3.UnitX);
-
-			for (int i = 0; i < 4; i++)
-			{
-				colors.Add(new Color(155, 155, 155, 255));
-			}
-
-			indices.Add((ushort)(vertices.Count - 4));
-			indices.Add((ushort)(vertices.Count - 3));
-			indices.Add((ushort)(vertices.Count - 2));
-			indices.Add((ushort)(vertices.Count - 3));
-			indices.Add((ushort)(vertices.Count - 1));
-			indices.Add((ushort)(vertices.Count - 2));
+			indices.Add(baseIndex + 0);
+			indices.Add(baseIndex + 1);
+			indices.Add(baseIndex + 2);
+			indices.Add(baseIndex + 1);
+			indices.Add(baseIndex + 3);
+			indices.Add(baseIndex + 2);
 		}
 	}
 

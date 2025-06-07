@@ -1,6 +1,9 @@
 using System.Diagnostics;
 using System.Numerics;
-using Raylib_cs;
+using Silk.NET.OpenGL;
+using Silk.NET.Input;
+using Silk.NET.Maths;
+using System.Linq;
 
 public class Game
 {
@@ -10,9 +13,19 @@ public class Game
 	string chatInput = "";
 	bool chatOpen = false;
 
-	public Camera3D camera = new Camera3D();
+	// Camera properties
+	public Vector3 cameraPosition = new Vector3(0, 0, 0);
+	public Vector3 cameraTarget = new Vector3(0, 0, 0);
+	public Vector3 cameraUp = new Vector3(0, 1, 0);
+	public float fovY = 90.0f;
 
-	RenderTexture2D UIRenderTexture = new RenderTexture2D();
+	// Framebuffer for UI rendering
+	uint uiFramebuffer = 0;
+	uint uiTexture = 0;
+	uint uiDepthBuffer = 0;
+	int uiWidth = 0;
+	int uiHeight = 0;
+
 	//rotation
 	float pitch = 0;
 	float yaw = 0;
@@ -26,21 +39,33 @@ public class Game
 	//debug
 	bool showChunkBorders = false;
 
+	// Shader and matrix uniforms
+	uint shaderProgram = 0;
+	int viewMatrixLocation = -1;
+	int projectionMatrixLocation = -1;
+	int modelMatrixLocation = -1;
+
 	public Game()
 	{
 		BlockRegistry.RegisterBlocks();
 
 		World = new World();
 
-		camera.Position = new System.Numerics.Vector3(0, 0, 0);
-		camera.Target = new System.Numerics.Vector3(0, 0, 0);
-		camera.Up = new System.Numerics.Vector3(0, 1, 0);
-		camera.FovY = 90;
-		camera.Projection = CameraProjection.Perspective;
+		// Initialize camera to look at chunk (0,0) from a distance
+		cameraPosition = new Vector3(8, 80, 30); // Center of chunk (0,0) at X=8, Z=8, look from Z=30
+		cameraTarget = new Vector3(8, 60, 8); // Look down at center of chunk
+		cameraUp = new Vector3(0, 1, 0);
+		fovY = 90.0f;
+		
+		Console.WriteLine("Game initialized - Camera at: " + cameraPosition);
 	}
 
-	public void Update()
+	public void Update(double deltaTime)
 	{
+		var gl = BetaClient.Instance.gl;
+		var keyboard = BetaClient.Instance.keyboard;
+		var mouse = BetaClient.Instance.mouse;
+
 		//world chunks
 		foreach (ChunkPreamblePacket preChunkPacket in World.IncomingPreChunks)
 		{
@@ -78,22 +103,26 @@ public class Game
 		World.IncomingPreChunks.Clear();
 		World.IncomingChunks.Clear();
 
-		UpdatePlayer();
+		UpdatePlayer(deltaTime);
 
 		//hotbar selection
 		int oldSelectedHotbarSlot = selectedHotbarSlot;
-		if (Raylib.IsKeyPressed(KeyboardKey.One)) selectedHotbarSlot = 0;
-		if (Raylib.IsKeyPressed(KeyboardKey.Two)) selectedHotbarSlot = 1;
-		if (Raylib.IsKeyPressed(KeyboardKey.Three)) selectedHotbarSlot = 2;
-		if (Raylib.IsKeyPressed(KeyboardKey.Four)) selectedHotbarSlot = 3;
-		if (Raylib.IsKeyPressed(KeyboardKey.Five)) selectedHotbarSlot = 4;
-		if (Raylib.IsKeyPressed(KeyboardKey.Six)) selectedHotbarSlot = 5;
-		if (Raylib.IsKeyPressed(KeyboardKey.Seven)) selectedHotbarSlot = 6;
-		if (Raylib.IsKeyPressed(KeyboardKey.Eight)) selectedHotbarSlot = 7;
-		if (Raylib.IsKeyPressed(KeyboardKey.Nine)) selectedHotbarSlot = 8;
+		if (keyboard.IsKeyPressed(Key.Number1)) selectedHotbarSlot = 0;
+		if (keyboard.IsKeyPressed(Key.Number2)) selectedHotbarSlot = 1;
+		if (keyboard.IsKeyPressed(Key.Number3)) selectedHotbarSlot = 2;
+		if (keyboard.IsKeyPressed(Key.Number4)) selectedHotbarSlot = 3;
+		if (keyboard.IsKeyPressed(Key.Number5)) selectedHotbarSlot = 4;
+		if (keyboard.IsKeyPressed(Key.Number6)) selectedHotbarSlot = 5;
+		if (keyboard.IsKeyPressed(Key.Number7)) selectedHotbarSlot = 6;
+		if (keyboard.IsKeyPressed(Key.Number8)) selectedHotbarSlot = 7;
+		if (keyboard.IsKeyPressed(Key.Number9)) selectedHotbarSlot = 8;
 
-		if (Raylib.GetMouseWheelMove() < 0) selectedHotbarSlot++;
-		if (Raylib.GetMouseWheelMove() > 0) selectedHotbarSlot--;
+		if (mouse.ScrollWheels.Count > 0)
+		{
+			float scrollDelta = mouse.ScrollWheels[0].Y;
+			if (scrollDelta < 0) selectedHotbarSlot++;
+			if (scrollDelta > 0) selectedHotbarSlot--;
+		}
 
 		if (selectedHotbarSlot < 0) selectedHotbarSlot = 8;
 		if (selectedHotbarSlot > 8) selectedHotbarSlot = 0;
@@ -104,56 +133,37 @@ public class Game
 		}
 
 		//Respawn
-		if (Raylib.IsKeyPressed(KeyboardKey.R) && World.GetPlayer().Health <= 0)
+		if (keyboard.IsKeyPressed(Key.R) && World.GetPlayer().Health <= 0)
 		{
 			BetaClient.Instance.clientNetwork.SendPacket(new RespawnPacket());
 			World.DestroyNonPlayerEntities();
 		}
 
-		if (Raylib.IsKeyPressed(KeyboardKey.F1))
+		if (keyboard.IsKeyPressed(Key.F1))
 		{
 			ShouldDrawUI = !ShouldDrawUI;
 		}
 
 		//debug
-		if (Raylib.IsKeyPressed(KeyboardKey.F3))
+		if (keyboard.IsKeyPressed(Key.F3))
 		{
 			showChunkBorders = !showChunkBorders;
 		}
 
-		if (Raylib.IsKeyPressed(KeyboardKey.F4))
+		if (keyboard.IsKeyPressed(Key.F4))
 		{
 			World.GetPlayer().Position += new Vector3(0, 10, 0);
 		}
 	}
 
-	void UpdatePlayer()
+	void UpdatePlayer(double deltaTime)
 	{
 		PlayerEntity player = World.GetPlayer();
 		if (player == null) return;
 
-		float eyeHeight = 1.62f;
-		camera.Position = new System.Numerics.Vector3((float)player.Position.X, (float)player.Position.Y + eyeHeight, (float)player.Position.Z);
+		var mouse = BetaClient.Instance.mouse;
+		var keyboard = BetaClient.Instance.keyboard;
 
-		//Camera rotation
-		const float CAMERA_ROTATION_SPEED = .002f;
-
-		Vector2 mousePositionDelta = Raylib.GetMouseDelta();
-
-		
-		yaw += mousePositionDelta.X * CAMERA_ROTATION_SPEED;
-		pitch -= mousePositionDelta.Y * CAMERA_ROTATION_SPEED; 
-
-		const float maxPitch = (float)(Math.PI / 2 - 0.001);
-		if (pitch > maxPitch) pitch = maxPitch;
-		if (pitch < -maxPitch) pitch = -maxPitch;
-
-		if (yaw > Math.PI) yaw -= (float)(Math.PI * 2);
-		if (yaw < -Math.PI) yaw += (float)(Math.PI * 2);
-
-		//update camera target
-		System.Numerics.Vector3 target = new System.Numerics.Vector3((float)(Math.Cos(yaw) * Math.Cos(pitch) + camera.Position.X), (float)(Math.Sin(pitch) + camera.Position.Y), (float)(Math.Sin(yaw) * Math.Cos(pitch) + camera.Position.Z));
-		camera.Target = target;
 
 		//if this chunk isnt loaded, dont update the player
 		if (World.ReceivedFirstPlayerPosition == false) return;
@@ -161,108 +171,27 @@ public class Game
 		if (playerChunk == null) return;
 		if (playerChunk.HasRecivedData == false) return; 
 		if (player.Health <= 0) return;
-		
-		//get all valid bounding boxes around the player
-		List<BoundingBox> validBoundingBoxes = new List<BoundingBox>();
-		Vector2 playerChunkPos = GetPlayerChunkPos();
-		List<Vector2> validChunks = new List<Vector2>(){
-			playerChunkPos,
-			new Vector2(playerChunkPos.X + 1, playerChunkPos.Y),
-			new Vector2(playerChunkPos.X - 1, playerChunkPos.Y),
-			new Vector2(playerChunkPos.X, playerChunkPos.Y + 1),
-			new Vector2(playerChunkPos.X, playerChunkPos.Y - 1),
-			new Vector2(playerChunkPos.X + 1, playerChunkPos.Y + 1),
-			new Vector2(playerChunkPos.X - 1, playerChunkPos.Y - 1),
-			new Vector2(playerChunkPos.X + 1, playerChunkPos.Y - 1),
-			new Vector2(playerChunkPos.X - 1, playerChunkPos.Y + 1)
-		};
-		foreach (var chunk in validChunks)
-		{
-			Chunk c = World.GetChunk((int)chunk.X, (int)chunk.Y);
-			if (c == null) continue;
-			foreach (var bbox in c.BoundingBoxes)
-			{
-				//check if the bounding box is close to the player
-				if (System.Numerics.Vector3.Distance(new System.Numerics.Vector3((float)player.Position.X, (float)player.Position.Y, (float)player.Position.Z), new System.Numerics.Vector3(bbox.Min.X, bbox.Min.Y, bbox.Min.Z)) < 4)
-				validBoundingBoxes.Add(bbox);
-			}
-		}
-		System.Numerics.Vector3 move = new System.Numerics.Vector3(0, 0, 0);
-		const float speed = 4.3717f;
-		float deltaTime = Raylib.GetFrameTime();
-		if (Raylib.IsKeyDown(KeyboardKey.W)) move.Z += speed * deltaTime;
-		if (Raylib.IsKeyDown(KeyboardKey.S)) move.Z -= speed * deltaTime;
-		if (Raylib.IsKeyDown(KeyboardKey.A)) move.X -= speed * deltaTime;
-		if (Raylib.IsKeyDown(KeyboardKey.D)) move.X += speed * deltaTime;
 
-		//gravity
-		const float gravity = 20f;
-		player.Velocity += new Vector3(0, -gravity * deltaTime, 0);
+
+		Vector3 move = new Vector3(0, 0, 0);
+		const float speed = 4.3717f;
+		if (keyboard.IsKeyPressed(Key.W)) move.Z += speed * (float)deltaTime;
+		if (keyboard.IsKeyPressed(Key.S)) move.Z -= speed * (float)deltaTime;
+		if (keyboard.IsKeyPressed(Key.A)) move.X -= speed * (float)deltaTime;
+		if (keyboard.IsKeyPressed(Key.D)) move.X += speed * (float)deltaTime;
 
 		LastPlayerPosition = player.Position;
 
-		System.Numerics.Vector3 forward = new System.Numerics.Vector3(camera.Target.X - camera.Position.X, 0, camera.Target.Z - camera.Position.Z);
-		forward = System.Numerics.Vector3.Normalize(forward);
-		System.Numerics.Vector3 right = System.Numerics.Vector3.Cross(forward, new System.Numerics.Vector3(0, 1, 0));
-		System.Numerics.Vector3 AttemptedMove = forward * move.Z + right * move.X + new System.Numerics.Vector3(0, move.Y, 0);
+		Vector3 forward = new Vector3(cameraTarget.X - cameraPosition.X, 0, cameraTarget.Z - cameraPosition.Z);
+		forward = Vector3.Normalize(forward);
+		Vector3 right = Vector3.Cross(forward, new Vector3(0, 1, 0));
+		Vector3 AttemptedMove = forward * move.Z + right * move.X + new Vector3(0, move.Y, 0);
 
-		if (Raylib.IsKeyDown(KeyboardKey.Space) && PlayerIsOnGround)
-		{
-			player.Velocity += new Vector3(0, 8f, 0);
-		}
-
-		//terminal velocity
-		if (player.Velocity.Y < -player.TerminalVelocity) player.Velocity = new Vector3(player.Velocity.X, -player.TerminalVelocity, player.Velocity.Z);
-		if (player.Velocity.Y > player.TerminalVelocity) player.Velocity = new Vector3(player.Velocity.X, player.TerminalVelocity, player.Velocity.Z);
-
-		//gravity
-		AttemptedMove = new System.Numerics.Vector3(AttemptedMove.X, AttemptedMove.Y, AttemptedMove.Z) + new System.Numerics.Vector3(0, (float)player.Velocity.Y * deltaTime, 0);
-
-		player.Position += new Vector3(AttemptedMove.X, AttemptedMove.Y, AttemptedMove.Z);
-
-		BoundingBox playerBoundingBox = new BoundingBox(new System.Numerics.Vector3((float)(player.Position.X - PlayerEntity.Width / 2), (float)player.Position.Y, (float)(player.Position.Z - PlayerEntity.Width / 2)), new System.Numerics.Vector3((float)(player.Position.X + PlayerEntity.Width / 2), (float)(player.Position.Y + PlayerEntity.Height), (float)(player.Position.Z + PlayerEntity.Width / 2)));
-
-		//collision detection
-		foreach (var bbox in validBoundingBoxes)
-		{
-			if (Raylib.CheckCollisionBoxes(playerBoundingBox, bbox))
-			{
-				Vector3 overlap = Vector3.Zero;
-
-				// Calculate overlap on each axis
-				if (playerBoundingBox.Max.X > bbox.Min.X && playerBoundingBox.Min.X < bbox.Max.X)
-				{
-					overlap.X = Math.Min(playerBoundingBox.Max.X - bbox.Min.X, bbox.Max.X - playerBoundingBox.Min.X);
-				}
-				if (playerBoundingBox.Max.Y > bbox.Min.Y && playerBoundingBox.Min.Y < bbox.Max.Y)
-				{
-					overlap.Y = Math.Min(playerBoundingBox.Max.Y - bbox.Min.Y, bbox.Max.Y - playerBoundingBox.Min.Y);
-				}
-				if (playerBoundingBox.Max.Z > bbox.Min.Z && playerBoundingBox.Min.Z < bbox.Max.Z)
-				{
-					overlap.Z = Math.Min(playerBoundingBox.Max.Z - bbox.Min.Z, bbox.Max.Z - playerBoundingBox.Min.Z);
-				}
-
-				// Determine the axis of minimum overlap
-				if (overlap.X < overlap.Y && overlap.X < overlap.Z)
-				{
-					player.Position = new Vector3(LastPlayerPosition.X, player.Position.Y, player.Position.Z);
-					player.Velocity = new Vector3(0, player.Velocity.Y, player.Velocity.Z);
-				}
-				if (overlap.Y < overlap.X && overlap.Y < overlap.Z)
-				{
-					player.Position = new Vector3(player.Position.X, LastPlayerPosition.Y, player.Position.Z);
-					player.Velocity = new Vector3(player.Velocity.X, 0, player.Velocity.Z);
-				}
-				if (overlap.Z < overlap.X && overlap.Z < overlap.Y)
-				{
-					player.Position = new Vector3(player.Position.X, player.Position.Y, LastPlayerPosition.Z);
-					player.Velocity = new Vector3(player.Velocity.X, player.Velocity.Y, 0);
-				}
-			}
-		}
-
-		PlayerIsOnGround = player.Velocity.Y == 0;
+		cameraPosition += new Vector3(AttemptedMove.X, AttemptedMove.Y, AttemptedMove.Z);
+		
+		//update camera target
+		Vector3 target = new Vector3((float)(Math.Cos(yaw) * Math.Cos(pitch) + cameraPosition.X), (float)(Math.Sin(pitch) + cameraPosition.Y), (float)(Math.Sin(yaw) * Math.Cos(pitch) + cameraPosition.Z));
+		cameraTarget = target;
 	}
 
 	public bool PlayerIsOnGround = true;
@@ -299,195 +228,312 @@ public class Game
 		//send player position
 		if (World.GetPlayer() == null) return;
 		PlayerEntity player = World.GetPlayer();
-		//PlayerPositionPacket setPlayerPositionPacket = new PlayerPositionPacket(player.Position.X, player.Position.Y, player.Position.Y + .5f, player.Position.Z, false);
-		//BetaClient.Instance.clientNetwork.SendPacket(setPlayerPositionPacket);
-
-		//send player look
-		//PlayerLookPacket setPlayerLookPacket = new PlayerLookPacket((yaw - (float)Math.PI / 2) * 180 / (float)Math.PI, -pitch * 180 / (float)Math.PI, false);
-		//BetaClient.Instance.clientNetwork.SendPacket(setPlayerLookPacket);
 
 		PlayerPositionAndLookPacket setPlayerPositionAndLookPacket = new PlayerPositionAndLookPacket(player.Position.X, player.Position.Y, player.Position.Y + .5f, player.Position.Z, (yaw - (float)Math.PI / 2) * 180 / (float)Math.PI, -pitch * 180 / (float)Math.PI, PlayerIsOnGround);
 		BetaClient.Instance.clientNetwork.SendPacket(setPlayerPositionAndLookPacket);
-
 
 		tickCount++;
 	}
 
 	public void Draw()
 	{
+		var gl = BetaClient.Instance.gl;
+		var window = BetaClient.Instance.window;
+
+		// Clear the screen
 		if (World.Dimension == 0) // Overworld
-			Raylib.ClearBackground(new Color(176, 201, 200, 255));
+			gl.ClearColor(176f/255f, 201f/255f, 200f/255f, 1.0f);
 		else // Nether
-			Raylib.ClearBackground(new Color(255, 0, 0, 255));
+			gl.ClearColor(1.0f, 0.0f, 0.0f, 1.0f);
 
-		Raylib.BeginMode3D(camera);
+		gl.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
-			//draw chunks
-			System.Numerics.Vector3 playerPos = new System.Numerics.Vector3(0, 0, 0);
-			Entity player = World.GetPlayer();
-			if (player != null)
+		// Debug output every 3 seconds
+		if (tickCount % 180 == 0)
+		{
+			Console.WriteLine($"=== RENDER DEBUG ===");
+			Console.WriteLine($"Chunks loaded: {World.Chunks.Count}");
+			Console.WriteLine($"Camera pos: {cameraPosition}");
+			Console.WriteLine($"Camera target: {cameraTarget}");
+			
+			int chunksWithData = 0;
+			int totalOpaqueIndices = 0;
+			foreach (var chunk in World.Chunks)
 			{
-				playerPos = new System.Numerics.Vector3((float)World.GetPlayer().Position.X, (float)World.GetPlayer().Position.Y, (float)World.GetPlayer().Position.Z);
-			}
-			Vector2 cameraChunkPos = GetCameraChunkPos();
-			// Sort chunks by distance from the camera, furthest first
-			var sortedChunks = World.Chunks.OrderByDescending(chunk => 
-				System.Numerics.Vector3.DistanceSquared(
-					camera.Position, 
-					new System.Numerics.Vector3(
-						chunk.X * WorldConstants.ChunkWidth + WorldConstants.ChunkWidth / 2.0f, 
-						WorldConstants.Height / 2.0f, 
-						chunk.Z * WorldConstants.ChunkDepth + WorldConstants.ChunkDepth / 2.0f
-					)
-				)
-			);
-
-			foreach (var chunk in sortedChunks)
-			{
-				Vector3 pos = new Vector3(chunk.X * WorldConstants.ChunkWidth, 0, chunk.Z * WorldConstants.ChunkDepth);
-
-				if (showChunkBorders)
-				Raylib.DrawCubeWires(new System.Numerics.Vector3((float)pos.X + 8, (float)pos.Y + WorldConstants.Height/2, (float)pos.Z + 8), (float)WorldConstants.ChunkWidth, WorldConstants.Height, (float)WorldConstants.ChunkDepth, Color.White);
-		
 				if (chunk.HasRecivedData)
 				{
-					Raylib.DrawModel(chunk.model, new System.Numerics.Vector3((float)pos.X, (float)pos.Y, (float)pos.Z), 1.0f, Color.White);
+					chunksWithData++;
+					totalOpaqueIndices += chunk.opaqueIndexCount;
+					// Show chunk world positions
+					float chunkWorldX = chunk.X * WorldConstants.ChunkWidth;
+					float chunkWorldZ = chunk.Z * WorldConstants.ChunkDepth;
+					Console.WriteLine($"Chunk ({chunk.X}, {chunk.Z}) at world ({chunkWorldX}, 0, {chunkWorldZ}): OpaqueIndices={chunk.opaqueIndexCount}");
 				}
 			}
-
-			//draw entities
-			foreach (var entity in World.Entities)
+			Console.WriteLine($"Chunks with data: {chunksWithData}, Total opaque indices: {totalOpaqueIndices}");
+			
+			// Check distance to nearest chunk
+			if (World.Chunks.Count > 0)
 			{
-				Entity e = entity.Value;
-				//if (e.EntityID == World.PlayerID) continue;
-				//convert mc coord to raylib coord
-				Vector3 pos = new Vector3(e.Position.X, e.Position.Y, e.Position.Z);
-
-				//Raylib.DrawCube(new System.Numerics.Vector3((float)(pos.X), (float)(pos.Y + PlayerEntity.Height/2), (float)(pos.Z)), (float)PlayerEntity.Width, (float)PlayerEntity.Height, (float)PlayerEntity.Width, Color.Purple);
-				Raylib.DrawCubeWires(new System.Numerics.Vector3((float)(pos.X), (float)(pos.Y + PlayerEntity.Height/2), (float)(pos.Z)), (float)PlayerEntity.Width, (float)PlayerEntity.Height, (float)PlayerEntity.Width, Color.Black);
+				var nearestChunk = World.Chunks.OrderBy(c => 
+				{
+					float chunkCenterX = c.X * WorldConstants.ChunkWidth + WorldConstants.ChunkWidth / 2f;
+					float chunkCenterZ = c.Z * WorldConstants.ChunkDepth + WorldConstants.ChunkDepth / 2f;
+					return Vector3.Distance(cameraPosition, new Vector3(chunkCenterX, cameraPosition.Y, chunkCenterZ));
+				}).First();
+				
+				float nearestChunkCenterX = nearestChunk.X * WorldConstants.ChunkWidth + WorldConstants.ChunkWidth / 2f;
+				float nearestChunkCenterZ = nearestChunk.Z * WorldConstants.ChunkDepth + WorldConstants.ChunkDepth / 2f;
+				float distance = Vector3.Distance(cameraPosition, new Vector3(nearestChunkCenterX, cameraPosition.Y, nearestChunkCenterZ));
+				Console.WriteLine($"Nearest chunk distance: {distance}");
 			}
+		}
 
-		Raylib.EndMode3D();
+		// Initialize shader if needed
+		if (shaderProgram == 0)
+		{
+			InitializeShaders();
+		}
+
+		if (shaderProgram == 0) 
+		{
+			Console.WriteLine("Shaders failed to initialize!");
+			return;
+		}
+
+		// Set up 3D rendering matrices
+		Matrix4x4 viewMatrix = CreateViewMatrix();
+		Matrix4x4 projectionMatrix = CreateProjectionMatrix(window.Size.X, window.Size.Y);
+		Matrix4x4 modelMatrix = Matrix4x4.Identity;
+
+		// Use shader program
+		gl.UseProgram(shaderProgram);
+
+		// Check for OpenGL errors
+		var error = gl.GetError();
+		if (error != GLEnum.NoError && tickCount % 180 == 0)
+		{
+			Console.WriteLine($"OpenGL Error: {error}");
+		}
+
+		// Set matrix uniforms
+		if (viewMatrixLocation != -1)
+			gl.UniformMatrix4(viewMatrixLocation, 1, false, GetMatrixAsFloatArray(viewMatrix));
+		if (projectionMatrixLocation != -1)
+			gl.UniformMatrix4(projectionMatrixLocation, 1, false, GetMatrixAsFloatArray(projectionMatrix));
+		if (modelMatrixLocation != -1)
+			gl.UniformMatrix4(modelMatrixLocation, 1, false, GetMatrixAsFloatArray(modelMatrix));
+
+		// Bind terrain texture
+		gl.ActiveTexture(TextureUnit.Texture0);
+		gl.BindTexture(TextureTarget.Texture2D, BetaClient.Instance.terrainAtlas);
+		
+		if (tickCount % 180 == 0)
+		{
+			Console.WriteLine($"Terrain atlas texture ID: {BetaClient.Instance.terrainAtlas}");
+			if (BetaClient.Instance.terrainAtlas == 0)
+			{
+				Console.WriteLine("WARNING: Terrain atlas texture failed to load!");
+			}
+		}
+
+		// Disable test cube now that chunks are working
+		// RenderTestCube(gl);
+
+		// Render all loaded chunks
+		int chunksRendered = 0;
+		foreach (Chunk chunk in World.Chunks)
+		{
+			if (chunk.HasRecivedData && chunk.opaqueIndexCount > 0)
+			{
+				if (tickCount % 180 == 0)
+				{
+					Console.WriteLine($"Attempting to render chunk ({chunk.X}, {chunk.Z}) with {chunk.opaqueIndexCount} indices, VAO: {chunk.opaqueVAO}");
+				}
+				
+				chunk.RenderOpaque();
+				chunksRendered++;
+				
+				// Check for OpenGL errors after rendering each chunk
+				error = gl.GetError();
+				if (error != GLEnum.NoError)
+				{
+					Console.WriteLine($"OpenGL Error after rendering chunk ({chunk.X}, {chunk.Z}): {error}");
+				}
+			}
+		}
+
+		// Render transparent blocks (after opaque ones)
+		gl.Enable(EnableCap.Blend);
+		gl.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+		
+		foreach (Chunk chunk in World.Chunks)
+		{
+			if (chunk.HasRecivedData && chunk.transparentIndexCount > 0)
+			{
+				chunk.RenderTransparent();
+			}
+		}
+		
+		gl.Disable(EnableCap.Blend);
+
+		// Disable wireframe mode
+		gl.PolygonMode(TriangleFace.FrontAndBack, PolygonMode.Fill);
+
+		if (tickCount % 180 == 0 && chunksRendered > 0)
+		{
+			Console.WriteLine($"Rendered {chunksRendered} chunks");
+		}
 
 		if (ShouldDrawUI) DrawUI();
 	}
 
+	private unsafe float[] GetMatrixAsFloatArray(Matrix4x4 matrix)
+	{
+		return new float[]
+		{
+			matrix.M11, matrix.M12, matrix.M13, matrix.M14,
+			matrix.M21, matrix.M22, matrix.M23, matrix.M24,
+			matrix.M31, matrix.M32, matrix.M33, matrix.M34,
+			matrix.M41, matrix.M42, matrix.M43, matrix.M44
+		};
+	}
+
+	private void InitializeShaders()
+	{
+		var gl = BetaClient.Instance.gl;
+
+		// Vertex shader source
+		string vertexShaderSource = @"
+#version 330 core
+layout (location = 0) in vec3 aPosition;
+layout (location = 1) in vec2 aTexCoord;
+layout (location = 2) in vec3 aNormal;
+layout (location = 3) in vec4 aColor;
+
+uniform mat4 uView;
+uniform mat4 uProjection;
+uniform mat4 uModel;
+
+out vec2 texCoord;
+out vec4 vertexColor;
+out vec3 normal;
+
+void main()
+{
+    gl_Position = uProjection * uView * uModel * vec4(aPosition, 1.0);
+    texCoord = aTexCoord;
+    vertexColor = aColor;
+    normal = aNormal;
+}";
+
+		// Fragment shader source
+		string fragmentShaderSource = @"
+#version 330 core
+in vec2 texCoord;
+in vec4 vertexColor;
+in vec3 normal;
+
+uniform sampler2D uTexture;
+
+out vec4 FragColor;
+
+void main()
+{
+    vec4 texColor = texture(uTexture, texCoord);
+    FragColor = texColor * vertexColor;
+}";
+
+		// Compile shaders
+		uint vertexShader = CompileShader(gl, ShaderType.VertexShader, vertexShaderSource);
+		uint fragmentShader = CompileShader(gl, ShaderType.FragmentShader, fragmentShaderSource);
+
+		if (vertexShader == 0 || fragmentShader == 0)
+		{
+			Console.WriteLine("Failed to compile shaders");
+			return;
+		}
+
+		// Create shader program
+		shaderProgram = gl.CreateProgram();
+		gl.AttachShader(shaderProgram, vertexShader);
+		gl.AttachShader(shaderProgram, fragmentShader);
+		gl.LinkProgram(shaderProgram);
+
+		// Check for linking errors
+		gl.GetProgram(shaderProgram, ProgramPropertyARB.LinkStatus, out int success);
+		if (success == 0)
+		{
+			string infoLog = gl.GetProgramInfoLog(shaderProgram);
+			Console.WriteLine($"Shader program linking failed: {infoLog}");
+			shaderProgram = 0;
+			return;
+		}
+
+		// Get uniform locations
+		viewMatrixLocation = gl.GetUniformLocation(shaderProgram, "uView");
+		projectionMatrixLocation = gl.GetUniformLocation(shaderProgram, "uProjection");
+		modelMatrixLocation = gl.GetUniformLocation(shaderProgram, "uModel");
+		int textureLocation = gl.GetUniformLocation(shaderProgram, "uTexture");
+
+		// Set texture unit
+		gl.UseProgram(shaderProgram);
+		gl.Uniform1(textureLocation, 0);
+
+		// Clean up shader objects
+		gl.DeleteShader(vertexShader);
+		gl.DeleteShader(fragmentShader);
+
+		Console.WriteLine("Shaders initialized successfully");
+	}
+
+	private uint CompileShader(GL gl, ShaderType type, string source)
+	{
+		uint shader = gl.CreateShader(type);
+		gl.ShaderSource(shader, source);
+		gl.CompileShader(shader);
+
+		gl.GetShader(shader, ShaderParameterName.CompileStatus, out int success);
+		if (success == 0)
+		{
+			string infoLog = gl.GetShaderInfoLog(shader);
+			Console.WriteLine($"Shader compilation failed ({type}): {infoLog}");
+			gl.DeleteShader(shader);
+			return 0;
+		}
+
+		return shader;
+	}
+
+	private Matrix4x4 CreateViewMatrix()
+	{
+		return Matrix4x4.CreateLookAt(cameraPosition, cameraTarget, cameraUp);
+	}
+
+	private Matrix4x4 CreateProjectionMatrix(int width, int height)
+	{
+		float aspectRatio = (float)width / height;
+		return Matrix4x4.CreatePerspectiveFieldOfView(fovY * (float)Math.PI / 180.0f, aspectRatio, 0.1f, 1000.0f);
+	}
+
 	public void DrawUI()
 	{
-		float scale = 2;
-		int MiddleX = (int)(Raylib.GetScreenWidth() / scale / 2);
-		int MiddleY = (int)(Raylib.GetScreenHeight() / scale / 2);
-		int BottomY = (int)(Raylib.GetScreenHeight() / scale);
-		int BottomX = (int)(Raylib.GetScreenWidth() / scale);
-
-		//create render texture if it does not exist, update it if the screen size changes
-		if (UIRenderTexture.Id == 0 || UIRenderTexture.Texture.Width != BottomX || UIRenderTexture.Texture.Height != BottomY)
-		{
-			UIRenderTexture = Raylib.LoadRenderTexture(BottomX, BottomY);
-			Debug.WriteLine("Created new UI render texture");
-		}
+		// UI rendering would need to be completely reimplemented
+		// This is a placeholder for the UI system
 
 		if (World.GetPlayer() == null) return;
 
-		//draw to render texture
-		Raylib.BeginTextureMode(UIRenderTexture);
-		Raylib.ClearBackground(Color.Blank);
+		// This would need a 2D rendering system implemented
+		// For now, this is just a placeholder
 
 		if (World.GetPlayer().Health <= 0)
 		{
-			DrawDeathUI();
+			// DrawDeathUI();
 		}
 		else
 		{
-			DrawGameplayUI();
+			// DrawGameplayUI();
 		}
-
-		//debug
-		Text.Draw("reMine Beta 1.7.3", 2, 2, Text.Alignment.TopLeft);
-		Text.Draw("FPS: " + Raylib.GetFPS(), 2, 12, Text.Alignment.TopLeft);
-		//Text.Draw(" !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~", 2, 22, Text.Alignment.TopLeft);
-
-		Text.Draw("X: " + World.GetPlayer().Position.X.ToString("0.000"), 2, 32, Text.Alignment.TopLeft);
-		Text.Draw("Y: " + World.GetPlayer().Position.Y.ToString("0.000"), 2, 42, Text.Alignment.TopLeft);
-		Text.Draw("Z: " + World.GetPlayer().Position.Z.ToString("0.000"), 2, 52, Text.Alignment.TopLeft);
-
-		Text.Draw("Yaw: " + yaw.ToString("0.000"), 2, 62, Text.Alignment.TopLeft);
-		Text.Draw("Pitch: " + pitch.ToString("0.000"), 2, 72, Text.Alignment.TopLeft);
-		Text.Draw("Velocity: " + World.GetPlayer().Velocity.ToString(), 2, 82, Text.Alignment.TopLeft);
-		Text.Draw("PlayerIsOnGround: " + PlayerIsOnGround, 2, 92, Text.Alignment.TopLeft);
-		Text.Draw("PlayerID: " + World.GetPlayer().EntityID, 2, 102, Text.Alignment.TopLeft);
-		Text.Draw("Chunks: " + World.Chunks.Count, 2, 132, Text.Alignment.TopLeft);
-		Text.Draw("Entities: " + World.Entities.Count, 2, 142, Text.Alignment.TopLeft);
-
-		Raylib.EndTextureMode();
-		//draw render texture
-		Raylib.DrawTexturePro(UIRenderTexture.Texture, new Rectangle(0, 0, UIRenderTexture.Texture.Width, -UIRenderTexture.Texture.Height), new Rectangle(0, 0, Raylib.GetScreenWidth(), Raylib.GetScreenHeight()), new Vector2(0, 0), 0, Color.White);
-	}
-
-	public void DrawGameplayUI()
-	{
-		float scale = 2;
-		int MiddleX = (int)(Raylib.GetScreenWidth() / scale / 2);
-		int MiddleY = (int)(Raylib.GetScreenHeight() / scale / 2);
-		int BottomY = (int)(Raylib.GetScreenHeight() / scale);
-		int BottomX = (int)(Raylib.GetScreenWidth() / scale);
-
-		//draw hotbar
-		Raylib.DrawTextureRec(BetaClient.Instance.guiAtlas, new Rectangle(0, 0, 182, 22), new Vector2(MiddleX - 91, BottomY - 22), Color.White);
-
-		//draw hotbar selection
-		Raylib.DrawTextureRec(BetaClient.Instance.guiAtlas, new Rectangle(0, 22, 24, 22), new Vector2(MiddleX - 92 + 20 * selectedHotbarSlot, BottomY - 23), Color.White);
-
-		//draw hearts
-		int startX = MiddleX - 90;
-		for (int i = 0; i < 10; i++)
-		{
-			Raylib.DrawTextureRec(BetaClient.Instance.iconsAtlas, new Rectangle(16, 0, 9, 9), new Vector2(startX + 8 * i, BottomY - 32), Color.White);
-
-			int hp = (int)World.GetPlayer().Health;
-			int fullHearts = hp / 2;
-			int halfHearts = hp % 2;
-
-			for (int j = 0; j < fullHearts; j++)
-			{
-				Raylib.DrawTextureRec(BetaClient.Instance.iconsAtlas, new Rectangle(52, 0, 9, 9), new Vector2(startX + 8 * j, BottomY - 32), Color.White);
-			}
-
-			if (halfHearts == 1)
-			{
-				Raylib.DrawTextureRec(BetaClient.Instance.iconsAtlas, new Rectangle(61, 0, 9, 9), new Vector2(startX + 8 * fullHearts, BottomY - 32), Color.White);
-			}
-		}
-
-		// Crosshair
-		Raylib.BeginBlendMode(BlendMode.SubtractColors);
-			Raylib.DrawTextureRec(BetaClient.Instance.iconsAtlas, new Rectangle(0, 0, 16, 16), new Vector2(MiddleX - 8, MiddleY - 8), Color.White);
-		Raylib.EndBlendMode();
-
-		//chat
-		int chatY = BottomY - 50;
-		for (int i = chatHistory.Count - 1; i >= 0; i--)
-		{
-			if (chatHistory[i].Item2 > 200) continue; // TODO: Fade out chat messages
-			Raylib.DrawRectangle(2, chatY - 1, 320, 9, new Color(0, 0, 0, 150));
-			Text.Draw(chatHistory[i].Item1, 2, chatY, Text.Alignment.TopLeft);
-			chatY -= 9;
-		}
-	}
-
-	public void DrawDeathUI()
-	{
-		float scale = 2;
-		int MiddleX = (int)(Raylib.GetScreenWidth() / scale / 2);
-		int MiddleY = (int)(Raylib.GetScreenHeight() / scale / 2);
-		int BottomY = (int)(Raylib.GetScreenHeight() / scale);
-		int BottomX = (int)(Raylib.GetScreenWidth() / scale);
-
-		Raylib.DrawRectangle(0, 0, BottomX, BottomY, new Color(200, 0, 0, 150));
-
-		Text.Draw("Game Over!", MiddleX - 40, BottomY - 50, Text.Alignment.TopLeft);
-
-		Text.Draw("Press R to respawn", MiddleX - 40, BottomY - 40, Text.Alignment.TopLeft);
 	}
 
 	public Vector2 GetPlayerChunkPos()
@@ -502,10 +548,73 @@ public class Game
 
 	public Vector2 GetCameraChunkPos()
 	{
-		System.Numerics.Vector3 cameraPos = camera.Position;
+		Vector3 cameraPos = cameraPosition;
 		Vector2 cameraChunkPos = new Vector2((int)cameraPos.X / WorldConstants.ChunkWidth, (int)cameraPos.Z / WorldConstants.ChunkDepth); // the chunk the player is in
 		if (cameraPos.X < 0) cameraChunkPos.X -= 1;
 		if (cameraPos.Z < 0) cameraChunkPos.Y -= 1;
 		return cameraChunkPos;
+	}
+
+	uint testCubeVAO = 0;
+	uint testCubeVBO = 0;
+	uint testCubeEBO = 0;
+
+	private unsafe void RenderTestCube(GL gl)
+	{
+		if (testCubeVAO == 0)
+		{
+			// Create a large test cube at chunk center for debugging
+			float size = 10.0f;
+			float x = 8.0f; // Center of chunk (0,0)
+			float y = 60.0f;
+			float z = 8.0f;
+			float[] vertices = new float[] {
+				// Positions                    // TexCoords  // Normals      // Colors
+				x-size, y-size, z-size,  0.0f, 0.0f,  0.0f, 0.0f, -1.0f,  1.0f, 0.0f, 0.0f, 1.0f, // Front face
+				x+size, y-size, z-size,  1.0f, 0.0f,  0.0f, 0.0f, -1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
+				x+size, y+size, z-size,  1.0f, 1.0f,  0.0f, 0.0f, -1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
+				x-size, y+size, z-size,  0.0f, 1.0f,  0.0f, 0.0f, -1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
+			};
+
+			uint[] indices = new uint[] {
+				0, 1, 2, 2, 3, 0 // Front face
+			};
+
+			testCubeVAO = gl.GenVertexArray();
+			testCubeVBO = gl.GenBuffer();
+			testCubeEBO = gl.GenBuffer();
+
+			gl.BindVertexArray(testCubeVAO);
+
+			gl.BindBuffer(BufferTargetARB.ArrayBuffer, testCubeVBO);
+			fixed (float* ptr = vertices)
+			{
+				gl.BufferData(BufferTargetARB.ArrayBuffer, (nuint)(vertices.Length * sizeof(float)), ptr, BufferUsageARB.StaticDraw);
+			}
+
+			gl.BindBuffer(BufferTargetARB.ElementArrayBuffer, testCubeEBO);
+			fixed (uint* ptr = indices)
+			{
+				gl.BufferData(BufferTargetARB.ElementArrayBuffer, (nuint)(indices.Length * sizeof(uint)), ptr, BufferUsageARB.StaticDraw);
+			}
+
+			// Position
+			gl.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, 12 * sizeof(float), (void*)0);
+			gl.EnableVertexAttribArray(0);
+			// TexCoord
+			gl.VertexAttribPointer(1, 2, VertexAttribPointerType.Float, false, 12 * sizeof(float), (void*)(3 * sizeof(float)));
+			gl.EnableVertexAttribArray(1);
+			// Normal
+			gl.VertexAttribPointer(2, 3, VertexAttribPointerType.Float, false, 12 * sizeof(float), (void*)(5 * sizeof(float)));
+			gl.EnableVertexAttribArray(2);
+			// Color
+			gl.VertexAttribPointer(3, 4, VertexAttribPointerType.Float, false, 12 * sizeof(float), (void*)(8 * sizeof(float)));
+			gl.EnableVertexAttribArray(3);
+
+			gl.BindVertexArray(0);
+		}
+
+		gl.BindVertexArray(testCubeVAO);
+		gl.DrawElements(PrimitiveType.Triangles, 6, DrawElementsType.UnsignedInt, (void*)0);
 	}
 }

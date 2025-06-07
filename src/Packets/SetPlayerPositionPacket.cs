@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Numerics;
 
 /// <summary>
 /// Sent by servers to set the position and look of the player. Can be used to teleport players.
@@ -58,7 +59,7 @@ public struct SetPlayerPositionPacket : IPacket
         if (BetaClient.Game.World.PlayerID != -1)
         {
             PlayerEntity player = BetaClient.Game.World.GetPlayer();
-            player.Position = new Vector3(X, Y, Z);
+            player.Position = new Vector3((float)X, (float)Y, (float)Z);
             Logger.Debug($"Setting player: {player.EntityID} position to {player.Position}");
         }
         else

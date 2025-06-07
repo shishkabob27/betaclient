@@ -1,3 +1,5 @@
+using System.Numerics;
+
 public struct EntityLookAndRelativeMovePacket : IPacket
 {
 	public byte ID { get { return 0x21; } }
@@ -34,7 +36,7 @@ public struct EntityLookAndRelativeMovePacket : IPacket
 		Entity entity = BetaClient.Game.World.GetEntity(EntityID);
 		if (entity != null)
 		{
-			entity.Position += new Vector3(DeltaX / 32.0, DeltaY / 32.0, DeltaZ / 32.0);
+			entity.Position += new Vector3((float)DeltaX / 32.0f, (float)DeltaY / 32.0f, (float)DeltaZ / 32.0f);
 			entity.Yaw = Yaw;
 			entity.Pitch = Pitch;
 		}

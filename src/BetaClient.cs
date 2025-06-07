@@ -1,5 +1,10 @@
-using Raylib_cs;
-
+using Silk.NET.OpenGL;
+using Silk.NET.Windowing;
+using Silk.NET.Windowing.Sdl;
+using Silk.NET.Input;
+using Silk.NET.Maths;
+using StbImageSharp;
+using System.Runtime.InteropServices;
 
 public class BetaClient
 {
@@ -9,12 +14,18 @@ public class BetaClient
 
 	public string Username { get; set; } = "beta27";
 
-	public Texture2D vignetteTexture;
-	public Texture2D terrainAtlas;
-	public Texture2D guiAtlas;
-	public Texture2D fontAtlas;
-	public Texture2D itemAtlas;
-	public Texture2D iconsAtlas;
+	public IWindow window;
+	public GL gl;
+	public IInputContext inputContext;
+	public IMouse mouse;
+	public IKeyboard keyboard;
+
+	public uint vignetteTexture;
+	public uint terrainAtlas;
+	public uint guiAtlas;
+	public uint fontAtlas;
+	public uint itemAtlas;
+	public uint iconsAtlas;
 
 	public void Initialize()
 	{
@@ -28,60 +39,111 @@ public class BetaClient
 		//send handshake packet
 		clientNetwork.SendPacket(new HandshakeRequestPacket(Username));
 
-		//disable raylib log
-		Raylib.SetTraceLogLevel(TraceLogLevel.Warning);
-		Raylib.SetConfigFlags(ConfigFlags.ResizableWindow | ConfigFlags.AlwaysRunWindow);
-		Raylib.InitWindow(1280, 720, "reMine");
+		// Create window using SDL backend
+		var options = WindowOptions.Default;
+		options.Size = new Vector2D<int>(1280, 720);
+		options.Title = "reMine";
+		options.VSync = true;
+
+		// Use SDL as windowing platform (fallback from GLFW)
+		SdlWindowing.Use();
+		window = Window.Create(options);
+		window.Load += OnLoad;
+		window.Update += OnUpdate;
+		window.Render += OnRender;
+		window.Closing += OnClosing;
+		window.Resize += OnResize;
+	}
+
+	private void OnLoad()
+	{
+		gl = GL.GetApi(window);
+		inputContext = window.CreateInput();
+		
+		foreach (var device in inputContext.Keyboards)
+		{
+			keyboard = device;
+			break;
+		}
+		
+		foreach (var device in inputContext.Mice)
+		{
+			mouse = device;
+			//mouse.Cursor.CursorMode = CursorMode.Disabled;
+			break;
+		}
+
+		// Enable depth testing
+		gl.Enable(EnableCap.DepthTest);
+		// Temporarily disable face culling for debugging
+		//gl.Enable(EnableCap.CullFace);
+		//gl.CullFace(CullFaceMode.Back);
 
 		//load textures
-		vignetteTexture = Raylib.LoadTexture("texturepacks/minecraft/misc/vignette.png");
-		terrainAtlas = Raylib.LoadTexture("texturepacks/minecraft/terrain.png");
-		guiAtlas = Raylib.LoadTexture("texturepacks/minecraft/gui/gui.png");
-		fontAtlas = Raylib.LoadTexture("texturepacks/minecraft/font/default.png");
-		itemAtlas = Raylib.LoadTexture("texturepacks/minecraft/gui/items.png");
-		iconsAtlas = Raylib.LoadTexture("texturepacks/minecraft/gui/icons.png");
+		vignetteTexture = LoadTexture("texturepacks/minecraft/misc/vignette.png");
+		terrainAtlas = LoadTexture("texturepacks/minecraft/terrain.png");
+		guiAtlas = LoadTexture("texturepacks/minecraft/gui/gui.png");
+		fontAtlas = LoadTexture("texturepacks/minecraft/font/default.png");
+		itemAtlas = LoadTexture("texturepacks/minecraft/gui/items.png");
+		iconsAtlas = LoadTexture("texturepacks/minecraft/gui/icons.png");
+	}
 
-		//lock cursor
-		Raylib.DisableCursor();
+	private unsafe uint LoadTexture(string path)
+	{
+		if (!File.Exists(path))
+		{
+			Console.WriteLine($"Texture file not found: {path}");
+			return 0;
+		}
+
+		ImageResult image = ImageResult.FromStream(File.OpenRead(path), ColorComponents.RedGreenBlueAlpha);
+		
+		uint texture = gl.GenTexture();
+		gl.BindTexture(TextureTarget.Texture2D, texture);
+		
+		fixed (byte* ptr = image.Data)
+		{
+			gl.TexImage2D(TextureTarget.Texture2D, 0, InternalFormat.Rgba, (uint)image.Width, (uint)image.Height, 0, PixelFormat.Rgba, PixelType.UnsignedByte, ptr);
+		}
+		
+		gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest);
+		gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
+		
+		return texture;
 	}
 
 	public void BeginLoop()
 	{
-		while (!Raylib.WindowShouldClose())
-		{
-			Update();
-			Draw();
-		}
-
+		window.Run();
 		Shutdown();
 	}
 
 	double lastTick = 0;
 	long tickCount = 0;
 
-	public void Update()
+	private void OnUpdate(double deltaTime)
 	{
 		//every 50ms
-		if (Raylib.GetTime() - lastTick > 0.05)
+		if (window.Time - lastTick > 0.05)
 		{
-			lastTick = Raylib.GetTime();
+			lastTick = window.Time;
 			Tick();
 		}
 
 		clientNetwork.ReadPackets();
 
-		Game.Update();
+		Game.Update(deltaTime);
 
-		if (Raylib.IsKeyPressed(KeyboardKey.F2))
+		if (keyboard.IsKeyPressed(Key.F2))
 		{
 			//toggle cursor
-			if (Raylib.IsCursorHidden())
+			if (mouse.Cursor.CursorMode == CursorMode.Disabled)
 			{
-				Raylib.EnableCursor();
+				mouse.Cursor.CursorMode = CursorMode.Normal;
 			}
 			else
 			{
-				Raylib.DisableCursor();
+				mouse.Cursor.CursorMode = CursorMode.Disabled;
 			}
 		}
 	}
@@ -94,17 +156,35 @@ public class BetaClient
 		Game.Tick();
 	}
 
-	public void Draw()
+	private void OnRender(double deltaTime)
 	{
-		Raylib.BeginDrawing();
-			Game.Draw();
-		Raylib.EndDrawing();
+		Game.Draw();
+	}
+
+	private void OnResize(Vector2D<int> newSize)
+	{
+		gl.Viewport(0, 0, (uint)newSize.X, (uint)newSize.Y);
+	}
+
+	private void OnClosing()
+	{
+		// Cleanup will be handled in Shutdown
 	}
 
 	public void Shutdown()
 	{
 		clientNetwork.Shutdown();
 
-		Raylib.CloseWindow();
+		// Clean up textures
+		if (vignetteTexture != 0) gl.DeleteTexture(vignetteTexture);
+		if (terrainAtlas != 0) gl.DeleteTexture(terrainAtlas);
+		if (guiAtlas != 0) gl.DeleteTexture(guiAtlas);
+		if (fontAtlas != 0) gl.DeleteTexture(fontAtlas);
+		if (itemAtlas != 0) gl.DeleteTexture(itemAtlas);
+		if (iconsAtlas != 0) gl.DeleteTexture(iconsAtlas);
+
+		inputContext?.Dispose();
+		gl?.Dispose();
+		window?.Dispose();
 	}
 }

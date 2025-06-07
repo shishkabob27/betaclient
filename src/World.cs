@@ -1,3 +1,5 @@
+using System.Numerics;
+
 public class World
 {
 	public Dictionary<int, Entity> Entities = new Dictionary<int, Entity>();

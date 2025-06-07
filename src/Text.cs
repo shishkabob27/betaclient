@@ -1,5 +1,4 @@
 using System.Numerics;
-using Raylib_cs;
 
 public class Text
 {
@@ -175,8 +174,8 @@ public class Text
 			int y1 = (index / 16) * 8;
 
 			//draw background
-			Raylib.DrawTextureRec(BetaClient.Instance.fontAtlas, new Rectangle(x1, y1, 6, 8), new Vector2(x + 1, y + 1), backColor);
-			Raylib.DrawTextureRec(BetaClient.Instance.fontAtlas, new Rectangle(x1, y1, 6, 8), new Vector2(x, y), foreColor);
+			//Raylib.DrawTextureRec(BetaClient.Instance.fontAtlas, new Rectangle(x1, y1, 6, 8), new Vector2(x + 1, y + 1), backColor);
+			//Raylib.DrawTextureRec(BetaClient.Instance.fontAtlas, new Rectangle(x1, y1, 6, 8), new Vector2(x, y), foreColor);
 
 			x += kernTable[index];
 		}

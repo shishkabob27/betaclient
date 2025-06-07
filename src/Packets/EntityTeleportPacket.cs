@@ -1,3 +1,5 @@
+using System.Numerics;
+
 /// <summary>
 /// Used to teleport entities to arbitrary locations.
 /// </summary>

@@ -1,3 +1,5 @@
+using System.Numerics;
+
 public struct SpawnPlayerPacket : IPacket
 {
     public byte ID { get { return 0x14; } }
@@ -55,7 +57,7 @@ public struct SpawnPlayerPacket : IPacket
         {
             EntityID = EntityID,
             Username = PlayerName,
-            Position = new Vector3(X / 32.0, Y / 32.0, Z / 32.0),
+            Position = new Vector3((float)X / 32.0f, (float)Y / 32.0f, (float)Z / 32.0f),
             Yaw = Yaw,
             Pitch = Pitch
         };

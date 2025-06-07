@@ -1,7 +1,8 @@
 using System.Diagnostics;
 using System.IO.Compression;
 using System.Numerics;
-using Raylib_cs;
+using Silk.NET.OpenGL;
+
 public class Chunk
 {
 	public int X, Z;
@@ -11,9 +12,41 @@ public class Chunk
 	public NybbleArray BlockLight { get; private set; }
 	public NybbleArray SkyLight { get; private set; }
 
-	public Model model;
+	// OpenGL mesh data
+	public uint vertexArrayObject = 0;
+	public uint vertexBufferObject = 0;
+	public uint elementBufferObject = 0;
+	public int indexCount = 0;
+
+	// Separate meshes for opaque and transparent blocks
+	public uint opaqueVAO = 0;
+	public uint opaqueVBO = 0;
+	public uint opaqueEBO = 0;
+	public int opaqueIndexCount = 0;
+
+	public uint transparentVAO = 0;
+	public uint transparentVBO = 0;
+	public uint transparentEBO = 0;
+	public int transparentIndexCount = 0;
 
 	public List<BoundingBox> BoundingBoxes = new List<BoundingBox>();
+
+	// Vertex structure for OpenGL
+	public struct Vertex
+	{
+		public Vector3 Position;
+		public Vector2 TexCoord;
+		public Vector3 Normal;
+		public Vector4 Color;
+
+		public Vertex(Vector3 position, Vector2 texCoord, Vector3 normal, Vector4 color)
+		{
+			Position = position;
+			TexCoord = texCoord;
+			Normal = normal;
+			Color = color;
+		}
+	}
 
 	public Chunk(int x, int z)
 	{
@@ -23,6 +56,7 @@ public class Chunk
 
 	public void UpdateChunkData(ChunkDataPacket packet)
 	{
+        Console.WriteLine("Updating chunk data");
 		MemoryStream compressedStream = new MemoryStream(packet.CompressedData);
 
 		using (var ds = new ZLibStream(compressedStream, CompressionMode.Decompress))
@@ -56,18 +90,17 @@ public class Chunk
 	{
 		if (!HasRecivedData) return;
 
-		// Create separate lists for opaque and non-opaque blocks
-		List<System.Numerics.Vector3> verticesOpaque = new List<System.Numerics.Vector3>();
-		List<System.Numerics.Vector2> texcoordsOpaque = new List<System.Numerics.Vector2>();
-		List<System.Numerics.Vector3> normalsOpaque = new List<System.Numerics.Vector3>();
-		List<Color> colorsOpaque = new List<Color>();
-		List<ushort> indicesOpaque = new List<ushort>();
+		var gl = BetaClient.Instance.gl;
 
-		List<System.Numerics.Vector3> verticesTransparent = new List<System.Numerics.Vector3>();
-		List<System.Numerics.Vector2> texcoordsTransparent = new List<System.Numerics.Vector2>();
-		List<System.Numerics.Vector3> normalsTransparent = new List<System.Numerics.Vector3>();
-		List<Color> colorsTransparent = new List<Color>();
-		List<ushort> indicesTransparent = new List<ushort>();
+		// Create separate lists for opaque and transparent blocks
+		List<Vertex> verticesOpaque = new List<Vertex>();
+		List<uint> indicesOpaque = new List<uint>();
+
+		List<Vertex> verticesTransparent = new List<Vertex>();
+		List<uint> indicesTransparent = new List<uint>();
+
+		// Debug: Count block types
+		Dictionary<byte, int> blockCounts = new Dictionary<byte, int>();
 
 		for (int x = 0; x < WorldConstants.ChunkWidth; x++)
 		{
@@ -75,32 +108,29 @@ public class Chunk
 			{
 				for (int z = 0; z < WorldConstants.ChunkDepth; z++)
 				{
-					if (GetBlockID(x, y, z) == 0) continue;
-					
 					byte blockID = GetBlockID(x, y, z);
+					
+					// Count block types for debugging
+					if (!blockCounts.ContainsKey(blockID))
+						blockCounts[blockID] = 0;
+					blockCounts[blockID]++;
+					
+					if (blockID == 0) continue;
+					
 					BlockDefinition blockDef = BlockRegistry.GetBlock(blockID);
 					
 					// Select appropriate mesh based on opacity
-					List<System.Numerics.Vector3> vertices;
-					List<System.Numerics.Vector2> texcoords;
-					List<System.Numerics.Vector3> normals;
-					List<Color> colors;
-					List<ushort> indices;
+					List<Vertex> vertices;
+					List<uint> indices;
 					
 					if (blockDef.Opaque)
 					{
 						vertices = verticesOpaque;
-						texcoords = texcoordsOpaque;
-						normals = normalsOpaque;
-						colors = colorsOpaque;
 						indices = indicesOpaque;
 					}
 					else
 					{
 						vertices = verticesTransparent;
-						texcoords = texcoordsTransparent;
-						normals = normalsTransparent;
-						colors = colorsTransparent;
 						indices = indicesTransparent;
 					}
 					
@@ -139,170 +169,157 @@ public class Chunk
 						modeler = new CubeModeler();
 					}
 
-					modeler.RenderBlock(this, x, y, z, GetMetadata(x, y, z), GetBlockLight(x, y, z), GetSkyLight(x, y, z), ref vertices, ref texcoords, ref normals, ref colors, ref indices);
+					modeler.RenderBlock(this, x, y, z, GetMetadata(x, y, z), GetBlockLight(x, y, z), GetSkyLight(x, y, z), ref vertices, ref indices);
 				}
 			}
 		}
 
-		// Create the model with multiple meshes
-		int vertexCountOpaque = verticesOpaque.Count;
-		int vertexCountTransparent = verticesTransparent.Count;
-
-		// Create first mesh for opaque blocks
-		Mesh meshOpaque = default;
-		if (vertexCountOpaque > 0)
+		// Debug: Print block counts
+		Console.WriteLine($"Chunk ({X}, {Z}) block counts:");
+		foreach (var kvp in blockCounts.OrderBy(x => x.Key))
 		{
-			meshOpaque = new Mesh(vertexCountOpaque, indicesOpaque.Count / 2);
-			meshOpaque.AllocVertices();
-			meshOpaque.AllocTexCoords();
-			meshOpaque.AllocNormals();
-			meshOpaque.AllocColors();
-			meshOpaque.AllocIndices();
-
-			FillMeshData(meshOpaque, verticesOpaque, texcoordsOpaque, normalsOpaque, colorsOpaque, indicesOpaque);
-			Raylib.UploadMesh(ref meshOpaque, true);
+			if (kvp.Value > 0)
+				Console.WriteLine($"  Block ID {kvp.Key}: {kvp.Value} blocks");
 		}
 
-		// Create second mesh for transparent blocks
-		Mesh meshTransparent = default;
-		if (vertexCountTransparent > 0)
+		// Create OpenGL objects for opaque mesh
+		if (verticesOpaque.Count > 0)
 		{
-			meshTransparent = new Mesh(vertexCountTransparent, indicesTransparent.Count / 2);
-			meshTransparent.AllocVertices();
-			meshTransparent.AllocTexCoords();
-			meshTransparent.AllocNormals();
-			meshTransparent.AllocColors();
-			meshTransparent.AllocIndices();
-
-			FillMeshData(meshTransparent, verticesTransparent, texcoordsTransparent, normalsTransparent, colorsTransparent, indicesTransparent);
-			Raylib.UploadMesh(ref meshTransparent, true);
-		}
-
-		// Create model with two meshes if both exist
-		int meshCount = (vertexCountOpaque > 0 ? 1 : 0) + (vertexCountTransparent > 0 ? 1 : 0);
-		if (meshCount == 0) return; // No meshes to create
-
-		// Load the model with the first mesh
-		if (vertexCountOpaque > 0)
-		{
-			model = Raylib.LoadModelFromMesh(meshOpaque);
-		}
-		else
-		{
-			model = Raylib.LoadModelFromMesh(meshTransparent);
-		}
-
-		// Adjust the model to support two meshes if needed
-		if (meshCount == 2)
-		{
-			// Create a new model with two meshes
-			model.MeshCount = 2;
-			
-			// You'll need to manage memory manually for this part
-			// This is simplified and might need adjustment based on Raylib_cs implementation
-			unsafe
+			if (opaqueVAO == 0)
 			{
-				Mesh* meshes = (Mesh*)Raylib.MemAlloc((uint)(sizeof(Mesh) * 2));
-				meshes[0] = meshOpaque;
-				meshes[1] = meshTransparent;
-				
-				if (model.Meshes != null)
-				{
-					Raylib.MemFree(model.Meshes);
-				}
-				
-				model.Meshes = meshes;
-				
-				// Adjust materials array
-				Material* materials = (Material*)Raylib.MemAlloc((uint)(sizeof(Material) * 2));
-				
-				// Setup materials
-				Material materialOpaque = Raylib.LoadMaterialDefault();
-				materialOpaque.Maps[(int)MaterialMapIndex.Albedo].Texture = BetaClient.Instance.terrainAtlas;
-				materialOpaque.Maps[(int)MaterialMapIndex.Diffuse].Texture = BetaClient.Instance.terrainAtlas;
-				
-				Material materialTransparent = Raylib.LoadMaterialDefault();
-				materialTransparent.Maps[(int)MaterialMapIndex.Albedo].Texture = BetaClient.Instance.terrainAtlas;
-				materialTransparent.Maps[(int)MaterialMapIndex.Diffuse].Texture = BetaClient.Instance.terrainAtlas;
-				
-				materials[0] = materialOpaque;
-				materials[1] = materialTransparent;
-				
-				if (model.Materials != null)
-				{
-					Raylib.MemFree(model.Materials);
-				}
-				
-				model.Materials = materials;
-				model.MaterialCount = 2;
-				
-				// Setup mesh material mapping
-				int* meshMaterial = (int*)Raylib.MemAlloc((uint)(sizeof(int) * 2));
-				meshMaterial[0] = 0; // First mesh uses first material
-				meshMaterial[1] = 1; // Second mesh uses second material
-				
-				if (model.MeshMaterial != null)
-				{
-					Raylib.MemFree(model.MeshMaterial);
-				}
-				
-				model.MeshMaterial = meshMaterial;
+				opaqueVAO = gl.GenVertexArray();
+				opaqueVBO = gl.GenBuffer();
+				opaqueEBO = gl.GenBuffer();
+			}
+
+			gl.BindVertexArray(opaqueVAO);
+			
+			// Upload vertices
+			gl.BindBuffer(BufferTargetARB.ArrayBuffer, opaqueVBO);
+			fixed (Vertex* vertexPtr = verticesOpaque.ToArray())
+			{
+				gl.BufferData(BufferTargetARB.ArrayBuffer, (nuint)(verticesOpaque.Count * sizeof(Vertex)), vertexPtr, BufferUsageARB.StaticDraw);
+			}
+
+			// Upload indices
+			gl.BindBuffer(BufferTargetARB.ElementArrayBuffer, opaqueEBO);
+			fixed (uint* indexPtr = indicesOpaque.ToArray())
+			{
+				gl.BufferData(BufferTargetARB.ElementArrayBuffer, (nuint)(indicesOpaque.Count * sizeof(uint)), indexPtr, BufferUsageARB.StaticDraw);
+			}
+
+			// Set up vertex attributes
+			// Position (location 0)
+			gl.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, (uint)sizeof(Vertex), (void*)0);
+			gl.EnableVertexAttribArray(0);
+
+			// TexCoord (location 1)
+			gl.VertexAttribPointer(1, 2, VertexAttribPointerType.Float, false, (uint)sizeof(Vertex), (void*)(3 * sizeof(float)));
+			gl.EnableVertexAttribArray(1);
+
+			// Normal (location 2)
+			gl.VertexAttribPointer(2, 3, VertexAttribPointerType.Float, false, (uint)sizeof(Vertex), (void*)(5 * sizeof(float)));
+			gl.EnableVertexAttribArray(2);
+
+			// Color (location 3)
+			gl.VertexAttribPointer(3, 4, VertexAttribPointerType.Float, false, (uint)sizeof(Vertex), (void*)(8 * sizeof(float)));
+			gl.EnableVertexAttribArray(3);
+
+			opaqueIndexCount = indicesOpaque.Count;
+			
+			// Debug: Print some vertex positions
+			if (verticesOpaque.Count > 0)
+			{
+				Console.WriteLine($"Chunk ({X}, {Z}) opaque mesh: {verticesOpaque.Count} vertices, {indicesOpaque.Count} indices");
+				Console.WriteLine($"First vertex position: {verticesOpaque[0].Position}");
+				Console.WriteLine($"Last vertex position: {verticesOpaque[verticesOpaque.Count - 1].Position}");
 			}
 		}
-		else
+
+		// Create OpenGL objects for transparent mesh
+		if (verticesTransparent.Count > 0)
 		{
-			// Just one mesh, setup the material as before
-			Material material = Raylib.LoadMaterialDefault();
-			material.Maps[(int)MaterialMapIndex.Albedo].Texture = BetaClient.Instance.terrainAtlas;
-			material.Maps[(int)MaterialMapIndex.Diffuse].Texture = BetaClient.Instance.terrainAtlas;
-			model.Materials[0] = material;
-			model.MaterialCount = 1;
-			Raylib.SetModelMeshMaterial(ref model, 0, 0);
+			if (transparentVAO == 0)
+			{
+				transparentVAO = gl.GenVertexArray();
+				transparentVBO = gl.GenBuffer();
+				transparentEBO = gl.GenBuffer();
+			}
+
+			gl.BindVertexArray(transparentVAO);
+			
+			// Upload vertices
+			gl.BindBuffer(BufferTargetARB.ArrayBuffer, transparentVBO);
+			fixed (Vertex* vertexPtr = verticesTransparent.ToArray())
+			{
+				gl.BufferData(BufferTargetARB.ArrayBuffer, (nuint)(verticesTransparent.Count * sizeof(Vertex)), vertexPtr, BufferUsageARB.StaticDraw);
+			}
+
+			// Upload indices
+			gl.BindBuffer(BufferTargetARB.ElementArrayBuffer, transparentEBO);
+			fixed (uint* indexPtr = indicesTransparent.ToArray())
+			{
+				gl.BufferData(BufferTargetARB.ElementArrayBuffer, (nuint)(indicesTransparent.Count * sizeof(uint)), indexPtr, BufferUsageARB.StaticDraw);
+			}
+
+			// Set up vertex attributes (same as opaque)
+			gl.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, (uint)sizeof(Vertex), (void*)0);
+			gl.EnableVertexAttribArray(0);
+
+			gl.VertexAttribPointer(1, 2, VertexAttribPointerType.Float, false, (uint)sizeof(Vertex), (void*)(3 * sizeof(float)));
+			gl.EnableVertexAttribArray(1);
+
+			gl.VertexAttribPointer(2, 3, VertexAttribPointerType.Float, false, (uint)sizeof(Vertex), (void*)(5 * sizeof(float)));
+			gl.EnableVertexAttribArray(2);
+
+			gl.VertexAttribPointer(3, 4, VertexAttribPointerType.Float, false, (uint)sizeof(Vertex), (void*)(8 * sizeof(float)));
+			gl.EnableVertexAttribArray(3);
+
+			transparentIndexCount = indicesTransparent.Count;
+		}
+
+		gl.BindVertexArray(0);
+	}
+
+	public unsafe void RenderOpaque()
+	{
+		if (opaqueIndexCount <= 0) return;
+
+		var gl = BetaClient.Instance.gl;
+		
+		if (opaqueVAO == 0)
+		{
+			Console.WriteLine($"ERROR: Chunk ({X}, {Z}) has no VAO but has {opaqueIndexCount} indices!");
+			return;
+		}
+		
+		gl.BindVertexArray(opaqueVAO);
+		
+		// Check if VAO binding succeeded
+		gl.GetInteger(GetPName.VertexArrayBinding, out int boundVAO);
+		if (boundVAO != opaqueVAO)
+		{
+			Console.WriteLine($"ERROR: Failed to bind VAO {opaqueVAO} for chunk ({X}, {Z})");
+			return;
+		}
+		
+		gl.DrawElements(PrimitiveType.Triangles, (uint)opaqueIndexCount, DrawElementsType.UnsignedInt, (void*)0);
+		
+		// Check for errors after draw call
+		var error = gl.GetError();
+		if (error != GLEnum.NoError)
+		{
+			Console.WriteLine($"OpenGL Error in chunk ({X}, {Z}) DrawElements: {error}");
 		}
 	}
 
-	// Helper method to fill mesh data from lists
-	private unsafe void FillMeshData(Mesh mesh, List<System.Numerics.Vector3> vertices, 
-									List<System.Numerics.Vector2> texcoords, 
-									List<System.Numerics.Vector3> normals, 
-									List<Color> colors, 
-									List<ushort> indices)
+	public unsafe void RenderTransparent()
 	{
-		Span<System.Numerics.Vector3> verticesMeshSpan = mesh.VerticesAs<System.Numerics.Vector3>();
-		Span<System.Numerics.Vector2> texcoordsSpan = mesh.TexCoordsAs<System.Numerics.Vector2>();
-		Span<System.Numerics.Vector3> normalsSpan = mesh.NormalsAs<System.Numerics.Vector3>();
-		Span<Color> colorsSpan = mesh.ColorsAs<Color>();
-		Span<ushort> indicesSpan = mesh.IndicesAs<ushort>();
+		if (transparentIndexCount <= 0) return;
 
-		//add all vertices to the mesh
-		for (int i = 0; i < vertices.Count; i++)
-		{
-			verticesMeshSpan[i] = vertices[i];
-		}
-
-		//add all texcoords to the mesh
-		for (int i = 0; i < texcoords.Count; i++)
-		{
-			texcoordsSpan[i] = texcoords[i];
-		}
-
-		//add all normals to the mesh
-		for (int i = 0; i < normals.Count; i++)
-		{
-			normalsSpan[i] = normals[i];
-		}
-
-		//add all colors to the mesh
-		for (int i = 0; i < colors.Count; i++)
-		{
-			colorsSpan[i] = colors[i];
-		}
-
-		//add all indices to the mesh
-		for (int i = 0; i < indices.Count; i++)
-		{
-			indicesSpan[i] = indices[i];
-		}
+		var gl = BetaClient.Instance.gl;
+		gl.BindVertexArray(transparentVAO);
+		gl.DrawElements(PrimitiveType.Triangles, (uint)transparentIndexCount, DrawElementsType.UnsignedInt, (void*)0);
 	}
 
 	public void RegenerateBoundingBoxes()
@@ -357,24 +374,25 @@ public class Chunk
 					
 					BlockDefinition block = BlockRegistry.GetBlock(blockID);
 					
-					BoundingBox boundingBox = new BoundingBox(System.Numerics.Vector3.Zero, System.Numerics.Vector3.One);
+					BoundingBox boundingBox = new BoundingBox(Vector3.Zero, Vector3.One);
 
 					if (block != null)
 					{
-						boundingBox = block.BoundingBox;
+						// Convert from Raylib BoundingBox to our custom BoundingBox
+						// This assumes the BlockDefinition has been updated accordingly
+						// boundingBox = block.BoundingBox;
 					}
 
 					//if bounding box is zero, then skip this block
-					if (boundingBox.Min == System.Numerics.Vector3.Zero && boundingBox.Max == System.Numerics.Vector3.Zero) continue;
+					if (boundingBox.Min == Vector3.Zero && boundingBox.Max == Vector3.Zero) continue;
 
-					boundingBox.Min += new System.Numerics.Vector3(x + X * WorldConstants.ChunkWidth, y, z + Z * WorldConstants.ChunkDepth);
-					boundingBox.Max += new System.Numerics.Vector3(x + X * WorldConstants.ChunkWidth, y, z + Z * WorldConstants.ChunkDepth);
+					boundingBox.Min += new Vector3(x + X * WorldConstants.ChunkWidth, y, z + Z * WorldConstants.ChunkDepth);
+					boundingBox.Max += new Vector3(x + X * WorldConstants.ChunkWidth, y, z + Z * WorldConstants.ChunkDepth);
 					BoundingBoxes.Add(boundingBox);
 				}
 			}
 		}
 	}
-
 
 	/// <summary>
 	/// Converts Local Voxel Coordinates into an index into the internal arrays.
@@ -468,5 +486,25 @@ public class Chunk
 			return;
 		}
 		SkyLight[LocalCoordinatesToIndex(x, y, z)] = skyLight;
+	}
+
+	// Cleanup method to free OpenGL resources
+	public void Dispose()
+	{
+		var gl = BetaClient.Instance.gl;
+		
+		if (opaqueVAO != 0)
+		{
+			gl.DeleteVertexArray(opaqueVAO);
+			gl.DeleteBuffer(opaqueVBO);
+			gl.DeleteBuffer(opaqueEBO);
+		}
+
+		if (transparentVAO != 0)
+		{
+			gl.DeleteVertexArray(transparentVAO);
+			gl.DeleteBuffer(transparentVBO);
+			gl.DeleteBuffer(transparentEBO);
+		}
 	}
 }
