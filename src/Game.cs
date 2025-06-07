@@ -187,8 +187,23 @@ public class Game
 		Vector3 right = Vector3.Cross(forward, new Vector3(0, 1, 0));
 		Vector3 AttemptedMove = forward * move.Z + right * move.X + new Vector3(0, move.Y, 0);
 
-		cameraPosition += new Vector3(AttemptedMove.X, AttemptedMove.Y, AttemptedMove.Z);
-		
+		player.Position += new Vector3(AttemptedMove.X, AttemptedMove.Y, AttemptedMove.Z);
+
+		//debug arrow key camera movement
+		if (keyboard.IsKeyPressed(Key.Up)) pitch += 0.5f * (float)deltaTime;
+		if (keyboard.IsKeyPressed(Key.Down)) pitch -= 0.5f * (float)deltaTime;
+		if (keyboard.IsKeyPressed(Key.Left)) yaw -= 0.5f * (float)deltaTime;
+		if (keyboard.IsKeyPressed(Key.Right)) yaw += 0.5f * (float)deltaTime;
+
+		const float maxPitch = (float)(Math.PI / 2 - 0.001);
+		if (pitch > maxPitch) pitch = maxPitch;
+		if (pitch < -maxPitch) pitch = -maxPitch;
+		if (yaw > Math.PI) yaw -= (float)(Math.PI * 2);
+		if (yaw < -Math.PI) yaw += (float)(Math.PI * 2);
+
+		cameraPosition = player.Position;
+		cameraPosition.Y += 1.62f; // add eye height
+
 		//update camera target
 		Vector3 target = new Vector3((float)(Math.Cos(yaw) * Math.Cos(pitch) + cameraPosition.X), (float)(Math.Sin(pitch) + cameraPosition.Y), (float)(Math.Sin(yaw) * Math.Cos(pitch) + cameraPosition.Z));
 		cameraTarget = target;
@@ -248,47 +263,6 @@ public class Game
 
 		gl.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
-		// Debug output every 3 seconds
-		if (tickCount % 180 == 0)
-		{
-			Console.WriteLine($"=== RENDER DEBUG ===");
-			Console.WriteLine($"Chunks loaded: {World.Chunks.Count}");
-			Console.WriteLine($"Camera pos: {cameraPosition}");
-			Console.WriteLine($"Camera target: {cameraTarget}");
-			
-			int chunksWithData = 0;
-			int totalOpaqueIndices = 0;
-			foreach (var chunk in World.Chunks)
-			{
-				if (chunk.HasRecivedData)
-				{
-					chunksWithData++;
-					totalOpaqueIndices += chunk.opaqueIndexCount;
-					// Show chunk world positions
-					float chunkWorldX = chunk.X * WorldConstants.ChunkWidth;
-					float chunkWorldZ = chunk.Z * WorldConstants.ChunkDepth;
-					Console.WriteLine($"Chunk ({chunk.X}, {chunk.Z}) at world ({chunkWorldX}, 0, {chunkWorldZ}): OpaqueIndices={chunk.opaqueIndexCount}");
-				}
-			}
-			Console.WriteLine($"Chunks with data: {chunksWithData}, Total opaque indices: {totalOpaqueIndices}");
-			
-			// Check distance to nearest chunk
-			if (World.Chunks.Count > 0)
-			{
-				var nearestChunk = World.Chunks.OrderBy(c => 
-				{
-					float chunkCenterX = c.X * WorldConstants.ChunkWidth + WorldConstants.ChunkWidth / 2f;
-					float chunkCenterZ = c.Z * WorldConstants.ChunkDepth + WorldConstants.ChunkDepth / 2f;
-					return Vector3.Distance(cameraPosition, new Vector3(chunkCenterX, cameraPosition.Y, chunkCenterZ));
-				}).First();
-				
-				float nearestChunkCenterX = nearestChunk.X * WorldConstants.ChunkWidth + WorldConstants.ChunkWidth / 2f;
-				float nearestChunkCenterZ = nearestChunk.Z * WorldConstants.ChunkDepth + WorldConstants.ChunkDepth / 2f;
-				float distance = Vector3.Distance(cameraPosition, new Vector3(nearestChunkCenterX, cameraPosition.Y, nearestChunkCenterZ));
-				Console.WriteLine($"Nearest chunk distance: {distance}");
-			}
-		}
-
 		// Initialize shader if needed
 		if (shaderProgram == 0)
 		{
@@ -327,18 +301,6 @@ public class Game
 		// Bind terrain texture
 		gl.ActiveTexture(TextureUnit.Texture0);
 		gl.BindTexture(TextureTarget.Texture2D, BetaClient.Instance.terrainAtlas);
-		
-		if (tickCount % 180 == 0)
-		{
-			Console.WriteLine($"Terrain atlas texture ID: {BetaClient.Instance.terrainAtlas}");
-			if (BetaClient.Instance.terrainAtlas == 0)
-			{
-				Console.WriteLine("WARNING: Terrain atlas texture failed to load!");
-			}
-		}
-
-		// Disable test cube now that chunks are working
-		// RenderTestCube(gl);
 
 		// Render all loaded chunks
 		int chunksRendered = 0;
@@ -346,11 +308,6 @@ public class Game
 		{
 			if (chunk.HasRecivedData && chunk.opaqueIndexCount > 0)
 			{
-				if (tickCount % 180 == 0)
-				{
-					Console.WriteLine($"Attempting to render chunk ({chunk.X}, {chunk.Z}) with {chunk.opaqueIndexCount} indices, VAO: {chunk.opaqueVAO}");
-				}
-				
 				chunk.RenderOpaque();
 				chunksRendered++;
 				
@@ -379,11 +336,6 @@ public class Game
 
 		// Disable wireframe mode
 		gl.PolygonMode(TriangleFace.FrontAndBack, PolygonMode.Fill);
-
-		if (tickCount % 180 == 0 && chunksRendered > 0)
-		{
-			Console.WriteLine($"Rendered {chunksRendered} chunks");
-		}
 
 		if (ShouldDrawUI) DrawUI();
 	}
@@ -553,68 +505,5 @@ void main()
 		if (cameraPos.X < 0) cameraChunkPos.X -= 1;
 		if (cameraPos.Z < 0) cameraChunkPos.Y -= 1;
 		return cameraChunkPos;
-	}
-
-	uint testCubeVAO = 0;
-	uint testCubeVBO = 0;
-	uint testCubeEBO = 0;
-
-	private unsafe void RenderTestCube(GL gl)
-	{
-		if (testCubeVAO == 0)
-		{
-			// Create a large test cube at chunk center for debugging
-			float size = 10.0f;
-			float x = 8.0f; // Center of chunk (0,0)
-			float y = 60.0f;
-			float z = 8.0f;
-			float[] vertices = new float[] {
-				// Positions                    // TexCoords  // Normals      // Colors
-				x-size, y-size, z-size,  0.0f, 0.0f,  0.0f, 0.0f, -1.0f,  1.0f, 0.0f, 0.0f, 1.0f, // Front face
-				x+size, y-size, z-size,  1.0f, 0.0f,  0.0f, 0.0f, -1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
-				x+size, y+size, z-size,  1.0f, 1.0f,  0.0f, 0.0f, -1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
-				x-size, y+size, z-size,  0.0f, 1.0f,  0.0f, 0.0f, -1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
-			};
-
-			uint[] indices = new uint[] {
-				0, 1, 2, 2, 3, 0 // Front face
-			};
-
-			testCubeVAO = gl.GenVertexArray();
-			testCubeVBO = gl.GenBuffer();
-			testCubeEBO = gl.GenBuffer();
-
-			gl.BindVertexArray(testCubeVAO);
-
-			gl.BindBuffer(BufferTargetARB.ArrayBuffer, testCubeVBO);
-			fixed (float* ptr = vertices)
-			{
-				gl.BufferData(BufferTargetARB.ArrayBuffer, (nuint)(vertices.Length * sizeof(float)), ptr, BufferUsageARB.StaticDraw);
-			}
-
-			gl.BindBuffer(BufferTargetARB.ElementArrayBuffer, testCubeEBO);
-			fixed (uint* ptr = indices)
-			{
-				gl.BufferData(BufferTargetARB.ElementArrayBuffer, (nuint)(indices.Length * sizeof(uint)), ptr, BufferUsageARB.StaticDraw);
-			}
-
-			// Position
-			gl.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, 12 * sizeof(float), (void*)0);
-			gl.EnableVertexAttribArray(0);
-			// TexCoord
-			gl.VertexAttribPointer(1, 2, VertexAttribPointerType.Float, false, 12 * sizeof(float), (void*)(3 * sizeof(float)));
-			gl.EnableVertexAttribArray(1);
-			// Normal
-			gl.VertexAttribPointer(2, 3, VertexAttribPointerType.Float, false, 12 * sizeof(float), (void*)(5 * sizeof(float)));
-			gl.EnableVertexAttribArray(2);
-			// Color
-			gl.VertexAttribPointer(3, 4, VertexAttribPointerType.Float, false, 12 * sizeof(float), (void*)(8 * sizeof(float)));
-			gl.EnableVertexAttribArray(3);
-
-			gl.BindVertexArray(0);
-		}
-
-		gl.BindVertexArray(testCubeVAO);
-		gl.DrawElements(PrimitiveType.Triangles, 6, DrawElementsType.UnsignedInt, (void*)0);
 	}
 }

@@ -165,10 +165,7 @@ public class QuadModeler : IBlockModeler
 		{
 			atlasCoordinates = block.GetTextureMap(metadata, face);
 		}
-		
-		// Debug logging
-		Console.WriteLine($"QuadModeler - BlockID: {blockID}, Face: {face}, Atlas: ({atlasCoordinates.Item1}, {atlasCoordinates.Item2}), Final: ({atlasCoordinates.Item1 * 16}, {atlasCoordinates.Item2 * 16})");
-		
+				
 		return new Tuple<int, int>(atlasCoordinates.Item1 * 16, atlasCoordinates.Item2 * 16);
 	}
 }

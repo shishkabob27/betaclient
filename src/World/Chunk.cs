@@ -56,7 +56,6 @@ public class Chunk
 
 	public void UpdateChunkData(ChunkDataPacket packet)
 	{
-        Console.WriteLine("Updating chunk data");
 		MemoryStream compressedStream = new MemoryStream(packet.CompressedData);
 
 		using (var ds = new ZLibStream(compressedStream, CompressionMode.Decompress))
@@ -174,14 +173,6 @@ public class Chunk
 			}
 		}
 
-		// Debug: Print block counts
-		Console.WriteLine($"Chunk ({X}, {Z}) block counts:");
-		foreach (var kvp in blockCounts.OrderBy(x => x.Key))
-		{
-			if (kvp.Value > 0)
-				Console.WriteLine($"  Block ID {kvp.Key}: {kvp.Value} blocks");
-		}
-
 		// Create OpenGL objects for opaque mesh
 		if (verticesOpaque.Count > 0)
 		{
@@ -226,14 +217,6 @@ public class Chunk
 			gl.EnableVertexAttribArray(3);
 
 			opaqueIndexCount = indicesOpaque.Count;
-			
-			// Debug: Print some vertex positions
-			if (verticesOpaque.Count > 0)
-			{
-				Console.WriteLine($"Chunk ({X}, {Z}) opaque mesh: {verticesOpaque.Count} vertices, {indicesOpaque.Count} indices");
-				Console.WriteLine($"First vertex position: {verticesOpaque[0].Position}");
-				Console.WriteLine($"Last vertex position: {verticesOpaque[verticesOpaque.Count - 1].Position}");
-			}
 		}
 
 		// Create OpenGL objects for transparent mesh
