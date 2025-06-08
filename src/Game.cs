@@ -180,6 +180,9 @@ public class Game
 		if (keyboard.IsKeyPressed(Key.A)) move.X -= speed * (float)deltaTime;
 		if (keyboard.IsKeyPressed(Key.D)) move.X += speed * (float)deltaTime;
 
+		if (keyboard.IsKeyPressed(Key.Space)) move.Y += speed * (float)deltaTime;
+		if (keyboard.IsKeyPressed(Key.ShiftLeft)) move.Y -= speed * (float)deltaTime;
+
 		LastPlayerPosition = player.Position;
 
 		Vector3 forward = new Vector3(cameraTarget.X - cameraPosition.X, 0, cameraTarget.Z - cameraPosition.Z);
@@ -190,10 +193,11 @@ public class Game
 		player.Position += new Vector3(AttemptedMove.X, AttemptedMove.Y, AttemptedMove.Z);
 
 		//debug arrow key camera movement
-		if (keyboard.IsKeyPressed(Key.Up)) pitch += 0.5f * (float)deltaTime;
-		if (keyboard.IsKeyPressed(Key.Down)) pitch -= 0.5f * (float)deltaTime;
-		if (keyboard.IsKeyPressed(Key.Left)) yaw -= 0.5f * (float)deltaTime;
-		if (keyboard.IsKeyPressed(Key.Right)) yaw += 0.5f * (float)deltaTime;
+		float mouseSensitivity = 2f;
+		if (keyboard.IsKeyPressed(Key.Up)) pitch += mouseSensitivity * (float)deltaTime;
+		if (keyboard.IsKeyPressed(Key.Down)) pitch -= mouseSensitivity * (float)deltaTime;
+		if (keyboard.IsKeyPressed(Key.Left)) yaw -= mouseSensitivity * (float)deltaTime;
+		if (keyboard.IsKeyPressed(Key.Right)) yaw += mouseSensitivity * (float)deltaTime;
 
 		const float maxPitch = (float)(Math.PI / 2 - 0.001);
 		if (pitch > maxPitch) pitch = maxPitch;
