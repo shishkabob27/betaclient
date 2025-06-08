@@ -11,6 +11,10 @@ public static class SlabModeler
 
 		uint baseIndex = (uint)vertices.Count;
 
+		// Convert local chunk coordinates to world coordinates
+		x = x + chunk.X * WorldConstants.ChunkWidth;
+		z = z + chunk.Z * WorldConstants.ChunkDepth;
+
 		//neighboring blocks
 		byte blockIDUp = chunk.GetBlockID(x, y + 1, z);
 		byte blockIDDown = chunk.GetBlockID(x, y - 1, z);

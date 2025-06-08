@@ -12,6 +12,10 @@ public static class QuadModeler
 		var color = Color.White.ToVector4();
 		uint baseIndex = (uint)vertices.Count;
 
+		// Convert local chunk coordinates to world coordinates
+		x = x + chunk.X * WorldConstants.ChunkWidth;
+		z = z + chunk.Z * WorldConstants.ChunkDepth;
+
 		// Use consistent local coordinates for all vertices
 		float x0 = x;
 		float x1 = x + 1;

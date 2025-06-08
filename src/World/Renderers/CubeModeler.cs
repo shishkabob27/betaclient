@@ -27,8 +27,8 @@ public static class CubeModeler
 		uint baseIndex = (uint)vertices.Count;
 		
 		// Convert local chunk coordinates to world coordinates
-		float worldX = x + chunk.X * WorldConstants.ChunkWidth;
-		float worldZ = z + chunk.Z * WorldConstants.ChunkDepth;
+		x = x + chunk.X * WorldConstants.ChunkWidth;
+		z = z + chunk.Z * WorldConstants.ChunkDepth;
 		
 		if (!blockUp.Opaque && blockUp.ID != blockID) //top face (positive y)
 		{
@@ -42,10 +42,10 @@ public static class CubeModeler
 			// Top face vertices
 			var color = blockID == 2 ? new Color(158, 215, 109, 255).ToVector4() : Color.White.ToVector4();
 			
-			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(worldX, y + 1, worldZ), new System.Numerics.Vector2(u1, v2), System.Numerics.Vector3.UnitY, color));
-			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(worldX, y + 1, worldZ + 1), new System.Numerics.Vector2(u1, v1), System.Numerics.Vector3.UnitY, color));
-			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(worldX + 1, y + 1, worldZ), new System.Numerics.Vector2(u2, v2), System.Numerics.Vector3.UnitY, color));
-			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(worldX + 1, y + 1, worldZ + 1), new System.Numerics.Vector2(u2, v1), System.Numerics.Vector3.UnitY, color));
+			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(x, y + 1, z), new System.Numerics.Vector2(u1, v2), System.Numerics.Vector3.UnitY, color));
+			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(x, y + 1, z + 1), new System.Numerics.Vector2(u1, v1), System.Numerics.Vector3.UnitY, color));
+			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(x + 1, y + 1, z), new System.Numerics.Vector2(u2, v2), System.Numerics.Vector3.UnitY, color));
+			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(x + 1, y + 1, z + 1), new System.Numerics.Vector2(u2, v1), System.Numerics.Vector3.UnitY, color));
 
 			// Top face indices
 			indices.Add(baseIndex + 0);
@@ -69,10 +69,10 @@ public static class CubeModeler
 			
 			var color = new Color(120, 120, 120, 255).ToVector4();
 			
-			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(worldX, y, worldZ), new System.Numerics.Vector2(u1, v2), -System.Numerics.Vector3.UnitY, color));
-			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(worldX, y, worldZ + 1), new System.Numerics.Vector2(u1, v1), -System.Numerics.Vector3.UnitY, color));
-			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(worldX + 1, y, worldZ), new System.Numerics.Vector2(u2, v2), -System.Numerics.Vector3.UnitY, color));
-			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(worldX + 1, y, worldZ + 1), new System.Numerics.Vector2(u2, v1), -System.Numerics.Vector3.UnitY, color));
+			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(x, y, z), new System.Numerics.Vector2(u1, v2), -System.Numerics.Vector3.UnitY, color));
+			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(x, y, z + 1), new System.Numerics.Vector2(u1, v1), -System.Numerics.Vector3.UnitY, color));
+			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(x + 1, y, z), new System.Numerics.Vector2(u2, v2), -System.Numerics.Vector3.UnitY, color));
+			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(x + 1, y, z + 1), new System.Numerics.Vector2(u2, v1), -System.Numerics.Vector3.UnitY, color));
 
 			indices.Add(baseIndex + 0);
 			indices.Add(baseIndex + 2);
@@ -95,10 +95,10 @@ public static class CubeModeler
 			
 			var color = Color.White.ToVector4();
 			
-			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(worldX, y, worldZ), new System.Numerics.Vector2(u2, v2), -System.Numerics.Vector3.UnitZ, color));
-			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(worldX, y + 1, worldZ), new System.Numerics.Vector2(u2, v1), -System.Numerics.Vector3.UnitZ, color));
-			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(worldX + 1, y, worldZ), new System.Numerics.Vector2(u1, v2), -System.Numerics.Vector3.UnitZ, color));
-			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(worldX + 1, y + 1, worldZ), new System.Numerics.Vector2(u1, v1), -System.Numerics.Vector3.UnitZ, color));
+			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(x, y, z), new System.Numerics.Vector2(u2, v2), -System.Numerics.Vector3.UnitZ, color));
+			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(x, y + 1, z), new System.Numerics.Vector2(u2, v1), -System.Numerics.Vector3.UnitZ, color));
+			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(x + 1, y, z), new System.Numerics.Vector2(u1, v2), -System.Numerics.Vector3.UnitZ, color));
+			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(x + 1, y + 1, z), new System.Numerics.Vector2(u1, v1), -System.Numerics.Vector3.UnitZ, color));
 
 			indices.Add(baseIndex + 0);
 			indices.Add(baseIndex + 1);
@@ -121,10 +121,10 @@ public static class CubeModeler
 			
 			var color = Color.White.ToVector4();
 			
-			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(worldX, y, worldZ + 1), new System.Numerics.Vector2(u1, v2), System.Numerics.Vector3.UnitZ, color));
-			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(worldX, y + 1, worldZ + 1), new System.Numerics.Vector2(u1, v1), System.Numerics.Vector3.UnitZ, color));
-			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(worldX + 1, y, worldZ + 1), new System.Numerics.Vector2(u2, v2), System.Numerics.Vector3.UnitZ, color));
-			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(worldX + 1, y + 1, worldZ + 1), new System.Numerics.Vector2(u2, v1), System.Numerics.Vector3.UnitZ, color));
+			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(x, y, z + 1), new System.Numerics.Vector2(u1, v2), System.Numerics.Vector3.UnitZ, color));
+			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(x, y + 1, z + 1), new System.Numerics.Vector2(u1, v1), System.Numerics.Vector3.UnitZ, color));
+			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(x + 1, y, z + 1), new System.Numerics.Vector2(u2, v2), System.Numerics.Vector3.UnitZ, color));
+			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(x + 1, y + 1, z + 1), new System.Numerics.Vector2(u2, v1), System.Numerics.Vector3.UnitZ, color));
 
 			indices.Add(baseIndex + 0);
 			indices.Add(baseIndex + 2);
@@ -147,10 +147,10 @@ public static class CubeModeler
 			
 			var color = new Color(155, 155, 155, 255).ToVector4();
 			
-			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(worldX, y, worldZ), new System.Numerics.Vector2(u2, v2), -System.Numerics.Vector3.UnitX, color));
-			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(worldX, y + 1, worldZ), new System.Numerics.Vector2(u2, v1), -System.Numerics.Vector3.UnitX, color));
-			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(worldX, y, worldZ + 1), new System.Numerics.Vector2(u1, v2), -System.Numerics.Vector3.UnitX, color));
-			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(worldX, y + 1, worldZ + 1), new System.Numerics.Vector2(u1, v1), -System.Numerics.Vector3.UnitX, color));
+			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(x, y, z), new System.Numerics.Vector2(u2, v2), -System.Numerics.Vector3.UnitX, color));
+			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(x, y + 1, z), new System.Numerics.Vector2(u2, v1), -System.Numerics.Vector3.UnitX, color));
+			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(x, y, z + 1), new System.Numerics.Vector2(u1, v2), -System.Numerics.Vector3.UnitX, color));
+			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(x, y + 1, z + 1), new System.Numerics.Vector2(u1, v1), -System.Numerics.Vector3.UnitX, color));
 
 			indices.Add(baseIndex + 2);
 			indices.Add(baseIndex + 1);
@@ -173,10 +173,10 @@ public static class CubeModeler
 			
 			var color = new Color(155, 155, 155, 255).ToVector4();
 			
-			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(worldX + 1, y, worldZ), new System.Numerics.Vector2(u1, v2), System.Numerics.Vector3.UnitX, color));
-			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(worldX + 1, y + 1, worldZ), new System.Numerics.Vector2(u1, v1), System.Numerics.Vector3.UnitX, color));
-			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(worldX + 1, y, worldZ + 1), new System.Numerics.Vector2(u2, v2), System.Numerics.Vector3.UnitX, color));
-			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(worldX + 1, y + 1, worldZ + 1), new System.Numerics.Vector2(u2, v1), System.Numerics.Vector3.UnitX, color));
+			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(x + 1, y, z), new System.Numerics.Vector2(u1, v2), System.Numerics.Vector3.UnitX, color));
+			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(x + 1, y + 1, z), new System.Numerics.Vector2(u1, v1), System.Numerics.Vector3.UnitX, color));
+			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(x + 1, y, z + 1), new System.Numerics.Vector2(u2, v2), System.Numerics.Vector3.UnitX, color));
+			vertices.Add(new Chunk.Vertex(new System.Numerics.Vector3(x + 1, y + 1, z + 1), new System.Numerics.Vector2(u2, v1), System.Numerics.Vector3.UnitX, color));
 
 			indices.Add(baseIndex + 0);
 			indices.Add(baseIndex + 1);

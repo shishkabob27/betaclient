@@ -12,6 +12,10 @@ public static class TorchModeler
 		const float TorchOffset = 0.4375f;
 		var color = Color.White.ToVector4();
 		uint baseIndex = (uint)vertices.Count;
+
+		// Convert local chunk coordinates to world coordinates
+		x = x + chunk.X * WorldConstants.ChunkWidth;
+		z = z + chunk.Z * WorldConstants.ChunkDepth;
 		
 		//top face (positive y)
 		{
