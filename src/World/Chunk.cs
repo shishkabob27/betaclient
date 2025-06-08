@@ -76,12 +76,12 @@ public class Chunk
 			_blockIDs = new byte[blockCount];
 			
 			ds.Read(_blockIDs, 0, blockCount);
-			Metadata = new NybbleArray(ds, blockCount);
-			BlockLight = new NybbleArray(ds, blockCount);
-			SkyLight = new NybbleArray(ds, blockCount);
+			//Metadata = new NybbleArray(ds, blockCount);
+			//BlockLight = new NybbleArray(ds, blockCount);
+			//SkyLight = new NybbleArray(ds, blockCount);
 
 			RegenerateMesh();
-			RegenerateBoundingBoxes();
+			//RegenerateBoundingBoxes();
         }
 	}
 
@@ -132,9 +132,7 @@ public class Chunk
 						vertices = verticesTransparent;
 						indices = indicesTransparent;
 					}
-					
-					IBlockModeler modeler;
-					
+										
 					if (
 						blockID == 6 ||
 						blockID == 10 ||
@@ -147,13 +145,13 @@ public class Chunk
 						blockID == 83
 					)
 					{
-						modeler = new QuadModeler();
+						QuadModeler.RenderBlock(this, x, y, z, 0, 0, 0, ref vertices, ref indices);
 					}
 					else if (
 						blockID == 44
 					)
 					{
-						modeler = new SlabModeler();
+						SlabModeler.RenderBlock(this, x, y, z, 0, 0, 0, ref vertices, ref indices);
 					}
 					else if (
 						blockID == 50 ||
@@ -161,14 +159,12 @@ public class Chunk
 						blockID == 76
 					)
 					{
-						modeler = new TorchModeler();
+						TorchModeler.RenderBlock(this, x, y, z, 0, 0, 0, ref vertices, ref indices);
 					}
 					else
 					{
-						modeler = new CubeModeler();
+						CubeModeler.RenderBlock(this, x, y, z, 0, 0, 0, ref vertices, ref indices);
 					}
-
-					modeler.RenderBlock(this, x, y, z, GetMetadata(x, y, z), GetBlockLight(x, y, z), GetSkyLight(x, y, z), ref vertices, ref indices);
 				}
 			}
 		}

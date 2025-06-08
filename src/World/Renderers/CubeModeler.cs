@@ -1,6 +1,6 @@
-public class CubeModeler : IBlockModeler
+public static class CubeModeler
 {
-	public void RenderBlock(Chunk chunk, int x, int y, int z, byte metadata, byte blocklight, byte skylight, ref List<Chunk.Vertex> vertices, ref List<uint> indices)
+	public static void RenderBlock(Chunk chunk, int x, int y, int z, byte metadata, byte blocklight, byte skylight, ref List<Chunk.Vertex> vertices, ref List<uint> indices)
 	{
 		byte blockID = chunk.GetBlockID(x, y, z);
 		BlockDefinition block = BlockRegistry.GetBlock(blockID);
